@@ -1,6 +1,8 @@
+use std::f32::consts::PI;
+
 use approx::AbsDiffEq;
 use image::io::Reader;
-use image::{DynamicImage, GenericImageView, Rgba};
+use image::{DynamicImage, GenericImageView, Pixel, Rgb, Rgba};
 use palette::{FromColor, Hsv, Srgb};
 use tesseract::Tesseract;
 
@@ -28,7 +30,7 @@ enum Theme {
     Unknown,
 }
 
-fn theme_threshold_filter(color: Rgba<u8>) -> bool {
+fn theme_threshold_filter(color: Rgb<u8>) -> bool {
     let rgb = Srgb::from_components((
         color.0[0] as f32 / 255.0,
         color.0[1] as f32 / 255.0,
@@ -45,7 +47,7 @@ fn theme_threshold_filter(color: Rgba<u8>) -> bool {
     hsv.hue.abs_diff_eq(&primary.hue, 4.0) && hsv.saturation >= 0.25 && hsv.value >= 0.42
 }
 
-fn extract_parts(image: &DynamicImage) {
+fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
     let screen_scaling = 1.0;
     let line_height = (PIXEL_REWARD_LINE_HEIGHT as f32 / 2.0 * screen_scaling) as usize;
 
@@ -63,7 +65,7 @@ fn extract_parts(image: &DynamicImage) {
     //Bitmap postFilter = new Bitmap(mostWidth, mostBot - mostTop);
     let rectangle = (most_left, most_top, most_width, most_bot - most_top);
 
-    let prefilter = image.crop_imm(
+    let mut prefilter = image.crop_imm(
         most_left as u32,
         most_top as u32,
         most_width as u32,
@@ -75,7 +77,7 @@ fn extract_parts(image: &DynamicImage) {
     for y in 0..prefilter.height() {
         let mut count = 0;
         for x in 0..prefilter.width() {
-            let color = prefilter.get_pixel(x, y);
+            let color = prefilter.get_pixel(x, y).to_rgb();
             if theme_threshold_filter(color) {
                 count += 1;
             }
@@ -186,13 +188,101 @@ fn extract_parts(image: &DynamicImage) {
     let crop_hei = crop_bot - crop_top;
     let crop_top = crop_top - most_top as f32;
 
-    let partial_screenshot = prefilter.crop_imm(
+    let mut prefilter = prefilter.into_rgb8();
+    let partial_screenshot = DynamicImage::ImageRgb8(prefilter.clone()).crop_imm(
         crop_left as u32,
         crop_top as u32,
         crop_width as u32,
         crop_hei as u32,
     );
-    partial_screenshot.save("partial_screenshot.png");
+
+    // for (i, y) in top_five.iter().enumerate() {
+    //     for x in 0..prefilter.width() {
+    //         prefilter.put_pixel(x as u32, *y as u32, Rgb([i as u8 * 50, 0, 0]));
+    //     }
+    // }
+    // prefilter.save("partial_screenshot.png").unwrap();
+
+    partial_screenshot.save("partial_screenshot.png").unwrap();
+
+    filter_and_separater_parts_from_part_box(partial_screenshot)
+}
+
+fn filter_and_separater_parts_from_part_box(image: DynamicImage) -> Vec<DynamicImage> {
+    let mut filtered = image.into_rgb8();
+
+    let mut weight = 0.0;
+    let mut total_even = 0.0;
+    let mut total_odd = 0.0;
+    for x in 0..filtered.width() {
+        let mut count = 0;
+        for y in 0..filtered.height() {
+            let pixel = filtered.get_pixel_mut(x, y);
+            if theme_threshold_filter(*pixel) {
+                *pixel = Rgb([0; 3]);
+                count += 1;
+            } else {
+                *pixel = Rgb([255; 3]);
+            }
+        }
+
+        count = count.min(filtered.height() / 3);
+        let cosine = (8.0 * x as f32 * PI / filtered.width() as f32).cos();
+        let cosine_thing = cosine.powi(3);
+
+        // filtered.put_pixel(
+        //     x,
+        //     ((cosine_thing / 2.0 + 0.5) * (filtered.height() - 1) as f32) as u32,
+        //     Rgb([255, 0, 0]),
+        // );
+
+        println!("{}", cosine_thing);
+
+        let this_weight = cosine * count as f32;
+        weight += this_weight;
+
+        if cosine < 0.0 {
+            total_even -= this_weight;
+        } else if cosine > 0.0 {
+            total_odd += this_weight;
+        }
+    }
+
+    filtered
+        .save("filtered.png")
+        .expect("Failed to write filtered image");
+
+    if total_even == 0.0 && total_odd == 0.0 {
+        return vec![];
+    }
+
+    let total = total_even + total_odd;
+    println!("Even: {}", total_even / total);
+    println!("Odd: {}", total_odd / total);
+
+    let box_width = filtered.width() / 4;
+    let box_height = filtered.height();
+
+    let mut curr_left = 0;
+    let mut player_count = 4;
+
+    if total_odd > total_even {
+        curr_left = box_width / 2;
+        player_count = 3;
+    }
+
+    let mut images = Vec::new();
+
+    let dynamic_image = DynamicImage::ImageRgb8(filtered);
+    for i in 0..player_count {
+        let cropped = dynamic_image.crop_imm(curr_left + i * box_width, 0, box_width, box_height);
+        cropped
+            .save(format!("part-{}.png", i))
+            .expect("Failed to write image");
+        images.push(cropped);
+    }
+
+    images
 }
 
 fn main() {
@@ -203,5 +293,22 @@ fn main() {
     // let text = ocr.get_text().expect("Failed to get text");
     // println!("{}", text);
     let image = Reader::open("test-images/1.png").unwrap().decode().unwrap();
-    extract_parts(&image);
+    let parts = extract_parts(&image);
+
+    let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
+    for part in parts {
+        let buffer = part.as_flat_samples_u8().unwrap();
+        ocr = ocr
+            // .set_image("test-images/1.png")
+            .set_frame(
+                buffer.samples,
+                part.width() as i32,
+                part.height() as i32,
+                3,
+                3 * part.width() as i32,
+            )
+            .expect("Failed to set image");
+        let text = ocr.get_text().expect("Failed to get text");
+        println!("{}", text);
+    }
 }
