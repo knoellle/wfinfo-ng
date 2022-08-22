@@ -1,67 +1,33 @@
 use std::f32::consts::PI;
 
-use approx::AbsDiffEq;
 use image::io::Reader;
-use image::{DynamicImage, GenericImageView, Pixel, Rgb, Rgba};
-use palette::{FromColor, Hsv, Srgb};
+use image::{DynamicImage, GenericImageView, Pixel, Rgb};
 use tesseract::Tesseract;
 
-const PIXEL_REWARD_WIDTH: usize = 968;
-const PIXEL_REWARD_HEIGHT: usize = 235;
-const PIXEL_REWARD_YDISPLAY: usize = 316;
-const PIXEL_REWARD_LINE_HEIGHT: usize = 48;
+mod theme;
 
-enum Theme {
-    Vitruvian,
-    Stalker,
-    Baruuk,
-    Corpus,
-    Fortuna,
-    Grineer,
-    Lotus,
-    Nidus,
-    Orokin,
-    Tenno,
-    HighContrast,
-    Legacy,
-    Equinox,
-    DarkLotus,
-    Zephyr,
-    Unknown,
-}
+use theme::Theme;
 
-fn theme_threshold_filter(color: Rgb<u8>) -> bool {
-    let rgb = Srgb::from_components((
-        color.0[0] as f32 / 255.0,
-        color.0[1] as f32 / 255.0,
-        color.0[2] as f32 / 255.0,
-    ));
-    let hsv = Hsv::from_color(rgb);
-
-    let primary = Hsv::from_color(Srgb::from_components((
-        190.0 / 255.0,
-        169.0 / 255.0,
-        102.0 / 255.0,
-    )));
-
-    hsv.hue.abs_diff_eq(&primary.hue, 4.0) && hsv.saturation >= 0.25 && hsv.value >= 0.42
-}
+const PIXEL_REWARD_WIDTH: f32 = 968.0;
+const PIXEL_REWARD_HEIGHT: f32 = 235.0;
+const PIXEL_REWARD_YDISPLAY: f32 = 316.0;
+const PIXEL_REWARD_LINE_HEIGHT: f32 = 48.0;
 
 fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
     let screen_scaling = 1.0;
     let line_height = (PIXEL_REWARD_LINE_HEIGHT as f32 / 2.0 * screen_scaling) as usize;
 
-    let width = 1920;
-    let height = 1080;
-    let most_width = (PIXEL_REWARD_WIDTH as f32 * screen_scaling) as usize;
-    let most_left = (width / 2) - (most_width / 2);
+    let width = image.width() as f32;
+    let height = image.height() as f32;
+    let most_width = PIXEL_REWARD_WIDTH * screen_scaling;
+    let most_left = width / 2.0 - most_width / 2.0;
     // Most Top = pixleRewardYDisplay - pixleRewardHeight + pixelRewardLineHeight
     //                   (316          -        235        +       44)    *    1.1    =    137
-    let most_top = height / 2
-        - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT + PIXEL_REWARD_LINE_HEIGHT) as f32
-            * screen_scaling) as usize;
-    let most_bot = height / 2
-        - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) as f32 * screen_scaling * 0.5) as usize;
+    let most_top = height / 2.0
+        - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT + PIXEL_REWARD_LINE_HEIGHT)
+            * screen_scaling);
+    let most_bot = height / 2.0
+        - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) as f32 * screen_scaling * 0.5);
     //Bitmap postFilter = new Bitmap(mostWidth, mostBot - mostTop);
     let rectangle = (most_left, most_top, most_width, most_bot - most_top);
 
@@ -73,12 +39,14 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
     );
     prefilter.save("test.png").unwrap();
 
+    let theme = Theme::Fortuna;
+
     let mut rows = Vec::<usize>::new();
     for y in 0..prefilter.height() {
         let mut count = 0;
         for x in 0..prefilter.width() {
             let color = prefilter.get_pixel(x, y).to_rgb();
-            if theme_threshold_filter(color) {
+            if theme.threshold_filter(color) {
                 count += 1;
             }
         }
@@ -107,9 +75,9 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
         let text_both_bot = (screen_scaling * text_segments[2] * scale as f32 / 100.0) as usize;
         let text_tail_bot = (screen_scaling * text_segments[3] * scale as f32 / 100.0) as usize;
 
-        println!("");
-        println!("i: {}", i);
-        println!("y_from_top: {}", y_from_top);
+        // println!("");
+        // println!("i: {}", i);
+        // println!("y_from_top: {}", y_from_top);
         let mut w = 0.0;
         for loc in text_top..text_top_bot + 1 {
             w += (scale_width as f32 * 0.06 - rows[y_from_top + loc] as f32).abs();
@@ -143,7 +111,7 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
         }
     }
 
-    println!("Scaling: {}", scaling);
+    // println!("Scaling: {}", scaling);
 
     let mut top_five = [-1_isize; 5];
     for (i, _w) in perc_weights.iter().enumerate() {
@@ -163,7 +131,7 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
         }
     }
 
-    println!("top_five: {:?}", top_five);
+    // println!("top_five: {:?}", top_five);
 
     scaling = scaling / 100.0;
     let high_scaling = if scaling < 1.0 {
@@ -205,10 +173,13 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
 
     partial_screenshot.save("partial_screenshot.png").unwrap();
 
-    filter_and_separater_parts_from_part_box(partial_screenshot)
+    filter_and_separater_parts_from_part_box(partial_screenshot, theme)
 }
 
-fn filter_and_separater_parts_from_part_box(image: DynamicImage) -> Vec<DynamicImage> {
+fn filter_and_separater_parts_from_part_box(
+    image: DynamicImage,
+    theme: Theme,
+) -> Vec<DynamicImage> {
     let mut filtered = image.into_rgb8();
 
     let mut weight = 0.0;
@@ -218,7 +189,7 @@ fn filter_and_separater_parts_from_part_box(image: DynamicImage) -> Vec<DynamicI
         let mut count = 0;
         for y in 0..filtered.height() {
             let pixel = filtered.get_pixel_mut(x, y);
-            if theme_threshold_filter(*pixel) {
+            if theme.threshold_filter(*pixel) {
                 *pixel = Rgb([0; 3]);
                 count += 1;
             } else {
@@ -236,7 +207,7 @@ fn filter_and_separater_parts_from_part_box(image: DynamicImage) -> Vec<DynamicI
         //     Rgb([255, 0, 0]),
         // );
 
-        println!("{}", cosine_thing);
+        // println!("{}", cosine_thing);
 
         let this_weight = cosine * count as f32;
         weight += this_weight;
@@ -257,8 +228,8 @@ fn filter_and_separater_parts_from_part_box(image: DynamicImage) -> Vec<DynamicI
     }
 
     let total = total_even + total_odd;
-    println!("Even: {}", total_even / total);
-    println!("Odd: {}", total_odd / total);
+    // println!("Even: {}", total_even / total);
+    // println!("Odd: {}", total_odd / total);
 
     let box_width = filtered.width() / 4;
     let box_height = filtered.height();
@@ -286,29 +257,29 @@ fn filter_and_separater_parts_from_part_box(image: DynamicImage) -> Vec<DynamicI
 }
 
 fn main() {
-    // let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
-    // ocr = ocr
-    //     .set_image("test-images/1.png")
-    //     .expect("Failed to set image");
-    // let text = ocr.get_text().expect("Failed to get text");
-    // println!("{}", text);
-    let image = Reader::open("test-images/1.png").unwrap().decode().unwrap();
-    let parts = extract_parts(&image);
+    let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let tests = [9];
+    for i in tests {
+        let image = Reader::open(format!("test-images/{}.png", i))
+            .unwrap()
+            .decode()
+            .unwrap();
+        let parts = extract_parts(&image);
 
-    let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
-    for part in parts {
-        let buffer = part.as_flat_samples_u8().unwrap();
-        ocr = ocr
-            // .set_image("test-images/1.png")
-            .set_frame(
-                buffer.samples,
-                part.width() as i32,
-                part.height() as i32,
-                3,
-                3 * part.width() as i32,
-            )
-            .expect("Failed to set image");
-        let text = ocr.get_text().expect("Failed to get text");
-        println!("{}", text);
+        let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
+        for part in parts {
+            let buffer = part.as_flat_samples_u8().unwrap();
+            ocr = ocr
+                .set_frame(
+                    buffer.samples,
+                    part.width() as i32,
+                    part.height() as i32,
+                    3,
+                    3 * part.width() as i32,
+                )
+                .expect("Failed to set image");
+            let text = ocr.get_text().expect("Failed to get text");
+            println!("{}", text);
+        }
     }
 }
