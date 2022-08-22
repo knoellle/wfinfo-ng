@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::f32::consts::PI;
 
 use image::io::Reader;
@@ -13,8 +14,49 @@ const PIXEL_REWARD_HEIGHT: f32 = 235.0;
 const PIXEL_REWARD_YDISPLAY: f32 = 316.0;
 const PIXEL_REWARD_LINE_HEIGHT: f32 = 48.0;
 
-fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
-    let screen_scaling = 1.0;
+fn detect_theme(image: &DynamicImage) -> Theme {
+    let screen_scaling = if image.width() * 9 > image.height() * 16 {
+        image.height() as f32 / 1080.0
+    } else {
+        image.width() as f32 / 1920.0
+    };
+
+    let line_height = PIXEL_REWARD_LINE_HEIGHT / 2.0 * screen_scaling;
+    let most_width = PIXEL_REWARD_WIDTH * screen_scaling;
+
+    let min_width = most_width / 4.0;
+
+    let mut weights: HashMap<Theme, f32> = HashMap::new();
+    let mut debug_image = image.clone().into_rgb8();
+
+    for y in line_height as u32..image.height() {
+        let perc = (y as f32 - line_height) / (image.height() as f32 - line_height);
+        let total_width = min_width * perc + min_width;
+        for x in 0..total_width as u32 {
+            let closest = Theme::closest_from_color(
+                image
+                    .get_pixel(x + (most_width - total_width) as u32 / 2, y)
+                    .to_rgb(),
+            );
+            debug_image.put_pixel(x + (most_width - total_width) as u32 / 2, y, Rgb([255; 3]));
+
+            *weights.entry(closest.0).or_insert(0.0) += 1.0 / (1.0 + closest.1).powi(4)
+        }
+    }
+
+    debug_image.save("theme_detection.png").unwrap();
+
+    println!("{:#?}", weights);
+
+    *weights.iter().max_by(|a, b| a.1.total_cmp(b.1)).unwrap().0
+}
+
+fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
+    let screen_scaling = if image.width() * 9 > image.height() * 16 {
+        image.height() as f32 / 1080.0
+    } else {
+        image.width() as f32 / 1920.0
+    };
     let line_height = (PIXEL_REWARD_LINE_HEIGHT as f32 / 2.0 * screen_scaling) as usize;
 
     let width = image.width() as f32;
@@ -37,9 +79,8 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
         most_width as u32,
         (most_bot - most_top) as u32,
     );
-    prefilter.save("test.png").unwrap();
-
-    let theme = Theme::Fortuna;
+    let mut prefilter_draw = prefilter.clone().into_rgb8();
+    // prefilter.save("prefilter.png").unwrap();
 
     let mut rows = Vec::<usize>::new();
     for y in 0..prefilter.height() {
@@ -81,6 +122,11 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
         let mut w = 0.0;
         for loc in text_top..text_top_bot + 1 {
             w += (scale_width as f32 * 0.06 - rows[y_from_top + loc] as f32).abs();
+            prefilter_draw.put_pixel(
+                prefilter_draw.width() / 2 + i as u32,
+                (y_from_top + loc) as u32,
+                Rgb([255; 3]),
+            );
         }
         top_weights.push(w);
 
@@ -91,12 +137,22 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
             } else {
                 w += (scale_width as f32 * 0.24 - rows[y_from_top + loc] as f32).abs();
             }
+            prefilter_draw.put_pixel(
+                prefilter_draw.width() / 2 + i as u32,
+                (y_from_top + loc) as u32,
+                Rgb([0, 255, 0]),
+            );
         }
         mid_weights.push(w);
 
         let mut w = 0.0;
         for loc in text_both_bot..text_tail_bot {
             w += 10.0 * (scale_width as f32 * 0.007 - rows[y_from_top + loc] as f32).abs();
+            prefilter_draw.put_pixel(
+                prefilter_draw.width() / 2 + i as u32,
+                (y_from_top + loc) as u32,
+                Rgb([0, 0, 255]),
+            );
         }
         bot_weights.push(w);
 
@@ -156,20 +212,27 @@ fn extract_parts(image: &DynamicImage) -> Vec<DynamicImage> {
     let crop_hei = crop_bot - crop_top;
     let crop_top = crop_top - most_top as f32;
 
-    let mut prefilter = prefilter.into_rgb8();
-    let partial_screenshot = DynamicImage::ImageRgb8(prefilter.clone()).crop_imm(
+    let partial_screenshot = DynamicImage::ImageRgb8(prefilter.into_rgb8()).crop_imm(
         crop_left as u32,
         crop_top as u32,
         crop_width as u32,
         crop_hei as u32,
     );
 
-    // for (i, y) in top_five.iter().enumerate() {
-    //     for x in 0..prefilter.width() {
-    //         prefilter.put_pixel(x as u32, *y as u32, Rgb([i as u8 * 50, 0, 0]));
-    //     }
-    // }
-    // prefilter.save("partial_screenshot.png").unwrap();
+    // Draw top 5
+    for (i, y) in top_five.iter().enumerate() {
+        for x in 0..prefilter_draw.width() {
+            prefilter_draw.put_pixel(x as u32, *y as u32, Rgb([255 - i as u8 * 50, 0, 0]));
+        }
+    }
+    // Draw histogram
+    for (y, row) in rows.iter().enumerate() {
+        for x in 0..*row {
+            prefilter_draw.put_pixel(x as u32, y as u32, Rgb([0, 255, 0]));
+        }
+    }
+
+    prefilter_draw.save("prefilter.png").unwrap();
 
     partial_screenshot.save("partial_screenshot.png").unwrap();
 
@@ -257,14 +320,19 @@ fn filter_and_separater_parts_from_part_box(
 }
 
 fn main() {
-    let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    let tests = [9];
+    let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    // let tests = [1, 2];
     for i in tests {
         let image = Reader::open(format!("test-images/{}.png", i))
             .unwrap()
             .decode()
             .unwrap();
-        let parts = extract_parts(&image);
+
+        let theme = detect_theme(&image);
+        println!("{:?}", theme);
+        continue;
+
+        let parts = extract_parts(&image, theme);
 
         let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
         for part in parts {
@@ -281,5 +349,6 @@ fn main() {
             let text = ocr.get_text().expect("Failed to get text");
             println!("{}", text);
         }
+        println!("=================");
     }
 }
