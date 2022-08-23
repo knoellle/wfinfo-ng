@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
+use captrs::{Bgr8, Capturer};
 use image::io::Reader;
-use image::{DynamicImage, GenericImageView, Pixel, Rgb};
+use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgb, RgbImage};
+use palette::{Pixel as PalettePixel, Srgb};
 use tesseract::Tesseract;
 
 mod theme;
@@ -319,17 +321,36 @@ fn filter_and_separater_parts_from_part_box(
     images
 }
 
+fn frame_to_image(dimensions: (u32, u32), frame: &[Bgr8]) -> RgbImage {
+    let container = frame
+        .iter()
+        .flat_map(|bgr8| [bgr8.r, bgr8.g, bgr8.b])
+        .collect();
+    RgbImage::from_raw(dimensions.0, dimensions.1, container).unwrap()
+}
+
 fn main() {
-    let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-    // let tests = [1, 2];
+    let mut capturer = Capturer::new(0).unwrap();
+
+    println!("Capturer: {:?}", capturer.geometry());
+    let mut frame = capturer.capture_frame().unwrap();
+    println!("Captured");
+    let dimensions = capturer.geometry();
+    let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
+    println!("Converted");
+    // return;
+    // let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    let tests = [1];
     for i in tests {
-        let image = Reader::open(format!("test-images/{}.png", i))
-            .unwrap()
-            .decode()
-            .unwrap();
+        // let image = Reader::open(format!("test-images/{}.png", i))
+        //     .unwrap()
+        //     .decode()
+        //     .unwrap();
+        // println!("{:?}", image);
 
         let theme = detect_theme(&image);
         println!("{:?}", theme);
+        image.save("test.png");
         continue;
 
         let parts = extract_parts(&image, theme);
