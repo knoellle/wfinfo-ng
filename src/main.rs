@@ -330,9 +330,72 @@ fn frame_to_image(dimensions: (u32, u32), frame: &[Bgr8]) -> RgbImage {
     RgbImage::from_raw(dimensions.0, dimensions.1, container).unwrap()
 }
 
+fn image_to_strings(image: DynamicImage) -> Vec<String> {
+    let theme = detect_theme(&image);
+    let parts = extract_parts(&image, theme);
+
+    parts
+        .iter()
+        .map(|part| {
+            let mut ocr =
+                Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
+            let buffer = part.as_flat_samples_u8().unwrap();
+            ocr = ocr
+                .set_frame(
+                    buffer.samples,
+                    part.width() as i32,
+                    part.height() as i32,
+                    3,
+                    3 * part.width() as i32,
+                )
+                .expect("Failed to set image");
+            let text = ocr.get_text().expect("Failed to get text");
+            println!("{}", text);
+            text
+        })
+        .collect()
+}
+
+fn normalize_string(string: &str) -> String {
+    string.replace(|c: char| !c.is_ascii_alphabetic(), "")
+}
+
 #[cfg(test)]
 mod test {
+    use crate::database::Database;
+
     use super::*;
+
+    #[test]
+    fn single_image() {
+        let image = Reader::open(format!("test-images/{}.png", 1))
+            .unwrap()
+            .decode()
+            .unwrap();
+        let text = image_to_strings(image);
+        let text = text.iter().map(|s| normalize_string(s));
+        println!("{:#?}", text);
+        let db = Database::load_from_file(None);
+        let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
+        println!("{:#?}", items);
+
+        assert_eq!(
+            items[0].expect("Didn't find an item?").name,
+            "Octavia Prime Systems Blueprint"
+        );
+        assert_eq!(
+            items[1].expect("Didn't find an item?").name,
+            "Octavia Prime Blueprint"
+        );
+        assert_eq!(
+            items[2].expect("Didn't find an item?").name,
+            "Tenora Prime Blueprint"
+        );
+        assert_eq!(
+            items[3].expect("Didn't find an item?").name,
+            "Harrow Prime Systems Blueprint"
+        );
+    }
 
     // #[test]
     fn images() {
