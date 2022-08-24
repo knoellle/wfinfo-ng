@@ -538,46 +538,28 @@ mod test {
 }
 
 fn main() {
-    let mut capturer = Capturer::new(0).unwrap();
+    // let mut capturer = Capturer::new(0).unwrap();
 
-    println!("Capturer: {:?}", capturer.geometry());
-    let mut frame = capturer.capture_frame().unwrap();
-    println!("Captured");
-    let dimensions = capturer.geometry();
-    let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
-    println!("Converted");
+    // println!("Capturer: {:?}", capturer.geometry());
+    // let mut frame = capturer.capture_frame().unwrap();
+    // println!("Captured");
+    // let dimensions = capturer.geometry();
+    // let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
+    // println!("Converted");
     // return;
     // let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
     let tests = [1];
     for i in tests {
-        // let image = Reader::open(format!("test-images/{}.png", i))
-        //     .unwrap()
-        //     .decode()
-        //     .unwrap();
-        // println!("{:?}", image);
+        let filename = format!("test-images/{}.png", i);
+        let filename = "WFI test images/BorderScreenshot_2021-06-05_20-20-4901.png";
+        let image = Reader::open(filename).unwrap().decode().unwrap();
+        println!("Loaded");
 
-        let theme = detect_theme(&image);
-        println!("{:?}", theme);
-        image.save("test.png");
-        continue;
-
-        let parts = extract_parts(&image, theme);
-
-        let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
-        for part in parts {
-            let buffer = part.as_flat_samples_u8().unwrap();
-            ocr = ocr
-                .set_frame(
-                    buffer.samples,
-                    part.width() as i32,
-                    part.height() as i32,
-                    3,
-                    3 * part.width() as i32,
-                )
-                .expect("Failed to set image");
-            let text = ocr.get_text().expect("Failed to get text");
-            println!("{}", text);
-        }
-        println!("=================");
+        let text = image_to_strings(image);
+        let text = text.iter().map(|s| normalize_string(s));
+        println!("{:#?}", text);
+        let db = Database::load_from_file(None);
+        let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
+        println!("{:#?}", items);
     }
 }
