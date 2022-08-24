@@ -9,6 +9,7 @@ edition = "2021"
 approx = "0.5.1"
 captrs = "0.3.1"
 image = "0.24.3"
+levenshtein = "1.0.5"
 palette = "0.6.1"
 serde = { version = "1.0.144", features = ["serde_derive"] }
 serde-aux = "3.1.0"
