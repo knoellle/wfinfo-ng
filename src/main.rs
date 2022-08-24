@@ -12,6 +12,8 @@ mod theme;
 
 use theme::Theme;
 
+use crate::database::Database;
+
 const PIXEL_REWARD_WIDTH: f32 = 968.0;
 const PIXEL_REWARD_HEIGHT: f32 = 235.0;
 const PIXEL_REWARD_YDISPLAY: f32 = 316.0;
@@ -55,6 +57,7 @@ fn detect_theme(image: &DynamicImage) -> Theme {
 }
 
 fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
+    image.save("input.png").unwrap();
     let screen_scaling = if image.width() * 9 > image.height() * 16 {
         image.height() as f32 / 1080.0
     } else {
@@ -76,14 +79,14 @@ fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
     //Bitmap postFilter = new Bitmap(mostWidth, mostBot - mostTop);
     let rectangle = (most_left, most_top, most_width, most_bot - most_top);
 
-    let mut prefilter = image.crop_imm(
+    let prefilter = image.crop_imm(
         most_left as u32,
         most_top as u32,
         most_width as u32,
         (most_bot - most_top) as u32,
     );
     let mut prefilter_draw = prefilter.clone().into_rgb8();
-    // prefilter.save("prefilter.png").unwrap();
+    prefilter.save("prefilter.png").unwrap();
 
     let mut rows = Vec::<usize>::new();
     for y in 0..prefilter.height() {
@@ -332,7 +335,9 @@ fn frame_to_image(dimensions: (u32, u32), frame: &[Bgr8]) -> RgbImage {
 
 fn image_to_strings(image: DynamicImage) -> Vec<String> {
     let theme = detect_theme(&image);
+    println!("Theme: {:?}", theme);
     let parts = extract_parts(&image, theme);
+    println!("Extracted part images");
 
     parts
         .iter()
@@ -362,8 +367,6 @@ fn normalize_string(string: &str) -> String {
 
 #[cfg(test)]
 mod test {
-    use crate::database::Database;
-
     use super::*;
 
     #[test]
@@ -395,6 +398,108 @@ mod test {
             items[3].expect("Didn't find an item?").name,
             "Harrow Prime Systems Blueprint"
         );
+    }
+
+    #[test]
+    fn wfi_images() {
+        let filenames = [
+            "WFI test images/FullScreenShot 2020-02-22 14-48-5430.png",
+            "WFI test images/FullScreenShot 2020-06-18 19-10-1443.png",
+            "WFI test images/FullScreenShot 2020-06-20 19-34-4299.png",
+            "WFI test images/FullScreenShot 2020-06-20 19-38-2502.png",
+            "WFI test images/FullScreenShot 2020-06-20 20-09-5411.png",
+            "WFI test images/FullScreenShot 2020-06-20 20-14-0448.png",
+            "WFI test images/FullScreenShot 2020-06-20 20-18-4525.png",
+            "WFI test images/FullScreenShot 2020-06-20 20-20-0744.png",
+            "WFI test images/FullScreenShot 2020-06-20 22-56-4320.png",
+            "WFI test images/FullScreenShot 2020-06-21 20-09-3214.png",
+            "WFI test images/FullScreenShot 2020-06-22 16-45-2295.png",
+            "WFI test images/FullScreenShot 2020-06-26 20-48-3752.png",
+            "WFI test images/FullScreenShot 2020-06-27 15-10-2630.png",
+            "WFI test images/FullScreenShot 2020-06-30 10-58-4234.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-09-1971.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-12-2629.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-15-5274.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-19-5866.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-24-2100.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-27-2797.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-30-5155.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-37-4636.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-40-5599.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-45-0070.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-48-1379.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-52-2415.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-57-1724.png",
+            "WFI test images/FullScreenShot 2020-06-30 12-38-5685.png",
+            "WFI test images/FullScreenShot 2020-06-30 12-41-3594.png",
+            "WFI test images/FullScreenShot 2020-06-30 12-45-1337.png",
+            "WFI test images/FullScreenShot 2020-06-30 12-49-2454.png",
+            "WFI test images/FullScreenShot 2020-06-30 12-54-0179.png",
+            "WFI test images/FullScreenShot 2020-06-30 12-57-1837.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-00-5126.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-03-5934.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-32-2693.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-35-3571.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-39-5708.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-43-4962.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-47-3641.png",
+            "WFI test images/FullScreenShot 2020-06-30 14-39-5467.png",
+            "WFI test images/FullScreenShot 2020-06-30 14-43-3028.png",
+            "WFI test images/FullScreenShot 2020-06-30 14-48-4323.png",
+            "WFI test images/FullScreenShot 2020-06-30 14-59-2275.png",
+            "WFI test images/FullScreenShot 2020-06-30 15-02-3402.png",
+            "WFI test images/FullScreenShot 2020-06-30 15-12-2945.png",
+            "WFI test images/FullScreenShot 2020-06-30 15-16-4411.png",
+            "WFI test images/FullScreenShot 2020-06-30 15-24-0499.png",
+            "WFI test images/FullScreenShot 2020-06-30 15-30-4981.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-20-0497.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-24-2319.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-29-0636.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-33-2737.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-37-4678.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-42-2817.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-47-3722.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-53-0962.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-56-0832.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-00-0982.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-09-1947.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-12-1813.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-15-2892.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-18-3724.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-21-5952.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-25-0517.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-28-4182.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-31-5444.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-35-2729.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-40-3237.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-43-5774.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-47-3461.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-01-2231.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-04-4056.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-08-1329.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-16-0396.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-24-5871.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-29-0564.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-32-3442.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-36-0217.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-49-2217.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-52-2884.png",
+            "WFI test images/FullScreenShot 2020-06-30 19-55-2891.png",
+            "WFI test images/FullScreenShot 2020-06-30 20-02-5516.png",
+            "WFI test images/FullScreenShot 2020-06-30 20-06-2083.png",
+            "WFI test images/FullScreenShot_2020-02-05_13-25-4618.png",
+        ];
+        for filename in filenames {
+            let image = Reader::open(filename).unwrap().decode().unwrap();
+            let text = image_to_strings(image);
+            let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
+            println!("{:#?}", text); // TODO: This prints wrong strings!!!
+            let db = Database::load_from_file(None);
+            let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
+            println!("{:#?}", items);
+            println!("{}", filename);
+            assert!(items.iter().all(|item| item.is_some()));
+        }
     }
 
     // #[test]

@@ -41,13 +41,13 @@ impl Database {
 
     pub fn find_item(&self, needle: &str, threshold: Option<usize>) -> Option<&Item> {
         let best_match = self.items.iter().min_by_key(|item| {
-            #[cfg(test)]
-            println!(
-                "{} {} -> {}",
-                item.name,
-                needle,
-                levenshtein(&item.name, needle)
-            );
+            // #[cfg(test)]
+            // println!(
+            //     "{} {} -> {}",
+            //     item.name,
+            //     needle,
+            //     levenshtein(&item.name, needle)
+            // );
 
             levenshtein(&item.name, needle)
         });
