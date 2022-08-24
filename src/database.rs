@@ -31,7 +31,7 @@ impl Database {
         Database { items }
     }
 
-    pub fn find_item(&self, needle: &str, threshold: usize) -> Option<&Item> {
+    pub fn find_item(&self, needle: &str, threshold: Option<usize>) -> Option<&Item> {
         let best_match = self.items.iter().min_by_key(|item| {
             println!(
                 "{} {} -> {}",
@@ -43,7 +43,7 @@ impl Database {
         });
 
         best_match.and_then(|item| {
-            if levenshtein(&item.name, needle) < threshold {
+            if levenshtein(&item.name, needle) <= threshold.unwrap_or(item.name.len() / 3) {
                 Some(item)
             } else {
                 None
@@ -64,14 +64,30 @@ mod test {
     #[test]
     pub fn can_find_items() {
         let db = Database::load_from_file(None);
+
         let item = db
-            .find_item("Titania Prime Blueprint", 3)
+            .find_item("Titania Prime Blueprint", Some(0))
             .expect("Failed to find Titania Prime Blueprint in database");
         assert_eq!(item.name, "Titania Prime Blueprint");
 
         let item = db
-            .find_item("Octavia Prime Blueprint", 3)
-            .expect("Failed to find Titania Prime Blueprint in database");
+            .find_item("Octavia Prime Blueprint", Some(0))
+            .expect("Failed to find Octavia Prime Blueprint in database");
+        assert_eq!(item.name, "Octavia Prime Blueprint");
+    }
+
+    #[test]
+    pub fn can_find_fuzzy_items() {
+        let db = Database::load_from_file(None);
+
+        let item = db
+            .find_item("Akstlett Prlme Recver", None)
+            .expect("Failed to fuzzy find Akstiletto Prime Receiver in database");
+        assert_eq!(item.name, "Akstiletto Prime Receiver");
+
+        let item = db
+            .find_item("ctavio Prlme Blueprnt", None)
+            .expect("Failed to fuzzy find Octavia Prime Blueprint in database");
         assert_eq!(item.name, "Octavia Prime Blueprint");
     }
 }
