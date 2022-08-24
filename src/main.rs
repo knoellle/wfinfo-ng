@@ -7,6 +7,7 @@ use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgb, RgbImage};
 use palette::{Pixel as PalettePixel, Srgb};
 use tesseract::Tesseract;
 
+mod database;
 mod theme;
 
 use theme::Theme;
@@ -327,6 +328,45 @@ fn frame_to_image(dimensions: (u32, u32), frame: &[Bgr8]) -> RgbImage {
         .flat_map(|bgr8| [bgr8.r, bgr8.g, bgr8.b])
         .collect();
     RgbImage::from_raw(dimensions.0, dimensions.1, container).unwrap()
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    // #[test]
+    fn images() {
+        let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+        for i in tests {
+            let image = Reader::open(format!("test-images/{}.png", i))
+                .unwrap()
+                .decode()
+                .unwrap();
+
+            let theme = detect_theme(&image);
+            println!("Theme: {:?}", theme);
+
+            let parts = extract_parts(&image, theme);
+
+            let mut ocr =
+                Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
+            for part in parts {
+                let buffer = part.as_flat_samples_u8().unwrap();
+                ocr = ocr
+                    .set_frame(
+                        buffer.samples,
+                        part.width() as i32,
+                        part.height() as i32,
+                        3,
+                        3 * part.width() as i32,
+                    )
+                    .expect("Failed to set image");
+                let text = ocr.get_text().expect("Failed to get text");
+                println!("{}", text);
+            }
+            println!("=================");
+        }
+    }
 }
 
 fn main() {
