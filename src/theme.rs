@@ -73,8 +73,12 @@ impl Theme {
         let primary = self.primary();
         let secondary = self.secondary();
 
-        return color_difference((primary, test)) < 0.2
-            || color_difference((secondary, test)) < 0.2;
+        match self {
+            Theme::Equinox => test.saturation <= 0.2 && test.lightness >= 0.55,
+            _ => {
+                color_difference((primary, test)) < 0.2 || color_difference((secondary, test)) < 0.2
+            }
+        }
 
         // hsv.hue.abs_diff_eq(&primary.hue, 4.0) && hsv.saturation >= 0.25 && hsv.value >= 0.42
 
