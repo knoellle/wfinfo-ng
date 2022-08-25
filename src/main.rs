@@ -1,18 +1,23 @@
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::fs::{self, read_to_string, File};
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+use std::sync::mpsc;
+use std::time::Duration;
 
 use captrs::{Bgr8, Capturer};
 use image::io::Reader;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgb, RgbImage};
+use notify::{watcher, RecursiveMode, Watcher};
 use palette::{Pixel as PalettePixel, Srgb};
 use tesseract::Tesseract;
 
 mod database;
+mod logs;
 mod theme;
 
+use database::Database;
 use theme::Theme;
-
-use crate::database::Database;
 
 const PIXEL_REWARD_WIDTH: f32 = 968.0;
 const PIXEL_REWARD_HEIGHT: f32 = 235.0;
@@ -537,29 +542,63 @@ mod test {
     }
 }
 
+fn run_detection(capturer: &mut Capturer) {
+    let frame = capturer.capture_frame().unwrap();
+    println!("Captured");
+    let dimensions = capturer.geometry();
+    let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
+    println!("Converted");
+    let text = image_to_strings(image.clone());
+    let text = text.iter().map(|s| normalize_string(s));
+    println!("{:#?}", text);
+    let db = Database::load_from_file(None);
+    let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
+    println!("{:#?}", items);
+}
+
 fn main() {
-    // let mut capturer = Capturer::new(0).unwrap();
+    let path = std::env::args().nth(1).unwrap();
+    println!("Path: {}", path);
+    let (tx, rx) = mpsc::channel();
+    let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
+    watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
 
-    // println!("Capturer: {:?}", capturer.geometry());
-    // let mut frame = capturer.capture_frame().unwrap();
-    // println!("Captured");
-    // let dimensions = capturer.geometry();
-    // let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
-    // println!("Converted");
-    // return;
-    // let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-    let tests = [1];
-    for i in tests {
-        let filename = format!("test-images/{}.png", i);
-        let filename = "WFI test images/BorderScreenshot_2021-06-05_20-20-4901.png";
-        let image = Reader::open(filename).unwrap().decode().unwrap();
-        println!("Loaded");
+    let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
+    println!("Position: {}", position);
 
-        let text = image_to_strings(image);
-        let text = text.iter().map(|s| normalize_string(s));
-        println!("{:#?}", text);
-        let db = Database::load_from_file(None);
-        let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
-        println!("{:#?}", items);
+    let mut capturer = Capturer::new(0).unwrap();
+    println!("Capture source resolution: {:?}", capturer.geometry());
+
+    loop {
+        match rx.recv() {
+            Ok(notify::DebouncedEvent::Write(_)) => {
+                let mut f = File::open(&path).unwrap();
+                f.seek(SeekFrom::Start(position)).unwrap();
+
+                let mut reward_screen_detected = false;
+
+                let reader = BufReader::new(f.by_ref());
+                for line in reader.lines() {
+                    let line = line.unwrap();
+                    // println!("> {:?}", line);
+                    if line.contains("Pause countdown done") || line.contains("Got rewards") {
+                        reward_screen_detected = true;
+                    }
+                }
+
+                if reward_screen_detected {
+                    run_detection(&mut capturer);
+                }
+
+                position = f.metadata().unwrap().len();
+                println!("{}", position);
+                // position = reader.stream_position().unwrap();
+            }
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("Error: {:?}", err);
+                break;
+            }
+        }
     }
 }

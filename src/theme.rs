@@ -62,6 +62,7 @@ impl Theme {
         ]
         .iter()
     }
+
     pub fn threshold_filter(&self, color: Rgb<u8>) -> bool {
         let rgb = Srgb::from_components((
             color.0[0] as f32 / 255.0,
