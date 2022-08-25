@@ -588,7 +588,10 @@ fn main() {
                 for line in reader.lines() {
                     let line = line.unwrap();
                     // println!("> {:?}", line);
-                    if line.contains("Pause countdown done") || line.contains("Got rewards") {
+                    if line.contains("Pause countdown done")
+                        || line.contains("Got rewards")
+                        || line.contains("Created /Lotus/Interface/ProjectionRewardChoice.swf")
+                    {
                         reward_screen_detected = true;
                     }
                 }
