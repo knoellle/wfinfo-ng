@@ -3,6 +3,7 @@ use std::f32::consts::PI;
 use std::fs::{self, read_to_string, File};
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::sync::mpsc;
+use std::thread::{sleep, sleep_ms};
 use std::time::Duration;
 
 use captrs::{Bgr8, Capturer};
@@ -587,6 +588,7 @@ fn main() {
                 }
 
                 if reward_screen_detected {
+                    sleep(Duration::from_millis(500));
                     run_detection(&mut capturer);
                 }
 
