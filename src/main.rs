@@ -554,7 +554,13 @@ fn run_detection(capturer: &mut Capturer) {
     println!("{:#?}", text);
     let db = Database::load_from_file(None);
     let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
-    println!("{:#?}", items);
+    for item in items {
+        if let Some(item) = item {
+            println!("{}\n\t{}", item.name, item.custom_avg);
+        } else {
+            println!("Unknown item\n\tUnknown");
+        }
+    }
 }
 
 fn main() {
