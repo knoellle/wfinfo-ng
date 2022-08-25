@@ -35,6 +35,12 @@ impl Database {
                 .replace("Neuroptics", "Neuroptics Blueprint")
                 .replace("Chassis", "Chassis Blueprint")
         });
+        items.push(Item {
+            name: "Forma Blueprint".to_string(),
+            yesterday_vol: 0,
+            today_vol: 0,
+            custom_avg: 0.0,
+        });
 
         Database { items }
     }
