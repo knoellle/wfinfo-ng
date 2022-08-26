@@ -13,12 +13,7 @@ use notify::{watcher, RecursiveMode, Watcher};
 use palette::{Pixel as PalettePixel, Srgb};
 use tesseract::Tesseract;
 
-mod database;
-mod logs;
-mod theme;
-
-use database::Database;
-use theme::Theme;
+use wfinfo::{database::Database, theme::Theme};
 
 const PIXEL_REWARD_WIDTH: f32 = 968.0;
 const PIXEL_REWARD_HEIGHT: f32 = 235.0;
