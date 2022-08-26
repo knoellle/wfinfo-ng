@@ -1,4 +1,3 @@
-use approx::AbsDiffEq;
 use image::Rgb;
 use palette::{FromColor, Hsl, Srgb};
 

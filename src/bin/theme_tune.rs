@@ -4,7 +4,7 @@ use eframe::{egui, epaint::ColorImage};
 use egui_extras::RetainedImage;
 use image::{io::Reader, DynamicImage, Rgb};
 use palette::{FromColor, Hsl, Srgb};
-use wfinfo::{ocr, theme::Theme};
+use wfinfo::theme::Theme;
 
 fn main() {
     let options = eframe::NativeOptions::default();

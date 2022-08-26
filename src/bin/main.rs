@@ -8,11 +8,7 @@ use captrs::Capturer;
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
 use wfinfo::database::Database;
-use wfinfo::ocr::{frame_to_image, image_to_strings};
-
-fn normalize_string(string: &str) -> String {
-    string.replace(|c: char| !c.is_ascii_alphabetic(), "")
-}
+use wfinfo::ocr::{frame_to_image, image_to_strings, normalize_string};
 
 #[cfg(test)]
 mod test {
