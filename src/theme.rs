@@ -76,10 +76,9 @@ impl Theme {
         match self {
             Theme::Equinox => test.saturation <= 0.2 && test.lightness >= 0.55,
             Theme::Stalker => {
-                test.hue.abs_diff_eq(&primary.hue, 4.0) && test.saturation >= 0.55
-                    || test.hue.abs_diff_eq(&secondary.hue, 4.0)
-                        && test.saturation >= 0.66
-                        && test.lightness >= 0.25
+                test.saturation > 0.58
+                    && test.lightness <= 0.37
+                    && test.hue.to_degrees().abs() <= 10.0
             }
             _ => {
                 color_difference((primary, test)) < 0.2 || color_difference((secondary, test)) < 0.2
