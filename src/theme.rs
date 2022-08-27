@@ -1,7 +1,8 @@
 use image::Rgb;
 use palette::{FromColor, Hsl, Srgb};
+use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum Theme {
     Vitruvian,
     Stalker,

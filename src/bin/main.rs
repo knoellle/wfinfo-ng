@@ -77,7 +77,7 @@ mod test {
             "WFI test images/FullScreenShot 2020-06-30 11-37-4636.png",
             "WFI test images/FullScreenShot 2020-06-30 11-40-5599.png",
             "WFI test images/FullScreenShot 2020-06-30 11-45-0070.png",
-            "WFI test images/FullScreenShot 2020-06-30 11-48-1379.png",
+            "WFI test images/FullScreenShot 2020-06-30 11-48-1379.png", // Atlas detected as Ash
             "WFI test images/FullScreenShot 2020-06-30 11-52-2415.png",
             "WFI test images/FullScreenShot 2020-06-30 11-57-1724.png",
             "WFI test images/FullScreenShot 2020-06-30 12-38-5685.png",
@@ -90,7 +90,7 @@ mod test {
             "WFI test images/FullScreenShot 2020-06-30 13-03-5934.png",
             "WFI test images/FullScreenShot 2020-06-30 13-32-2693.png",
             "WFI test images/FullScreenShot 2020-06-30 13-35-3571.png",
-            "WFI test images/FullScreenShot 2020-06-30 13-39-5708.png",
+            "WFI test images/FullScreenShot 2020-06-30 13-39-5708.png", // wrong theme detected
             "WFI test images/FullScreenShot 2020-06-30 13-43-4962.png",
             "WFI test images/FullScreenShot 2020-06-30 13-47-3641.png",
             "WFI test images/FullScreenShot 2020-06-30 14-39-5467.png",
@@ -102,7 +102,7 @@ mod test {
             "WFI test images/FullScreenShot 2020-06-30 15-16-4411.png",
             "WFI test images/FullScreenShot 2020-06-30 15-24-0499.png",
             "WFI test images/FullScreenShot 2020-06-30 15-30-4981.png",
-            "WFI test images/FullScreenShot 2020-06-30 17-20-0497.png",
+            "WFI test images/FullScreenShot 2020-06-30 17-20-0497.png", // Nyx detected as Bo
             "WFI test images/FullScreenShot 2020-06-30 17-24-2319.png",
             "WFI test images/FullScreenShot 2020-06-30 17-29-0636.png",
             "WFI test images/FullScreenShot 2020-06-30 17-33-2737.png",
@@ -112,7 +112,7 @@ mod test {
             "WFI test images/FullScreenShot 2020-06-30 17-53-0962.png",
             "WFI test images/FullScreenShot 2020-06-30 17-56-0832.png",
             "WFI test images/FullScreenShot 2020-06-30 18-00-0982.png",
-            "WFI test images/FullScreenShot 2020-06-30 18-09-1947.png",
+            "WFI test images/FullScreenShot 2020-06-30 18-09-1947.png", // Helios systems detected as set
             "WFI test images/FullScreenShot 2020-06-30 18-12-1813.png",
             "WFI test images/FullScreenShot 2020-06-30 18-15-2892.png",
             "WFI test images/FullScreenShot 2020-06-30 18-18-3724.png",
