@@ -38,9 +38,9 @@ impl Default for MyApp {
             image: None,
             detections: None,
 
-            saturation: 0.55..1.0,
-            lightness: 0.0..1.0,
-            hue: 0.0..5.0,
+            saturation: 0.50..1.0,
+            lightness: 0.15..1.0,
+            hue: -10.0..10.0,
         }
     }
 }
