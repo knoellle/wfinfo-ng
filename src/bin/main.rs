@@ -12,10 +12,14 @@ use wfinfo::ocr::{frame_to_image, image_to_strings, normalize_string};
 
 #[cfg(test)]
 mod test {
+    use std::fs::read_to_string;
+
     use image::io::Reader;
+    use indexmap::IndexMap;
     use tesseract::Tesseract;
     use wfinfo::ocr::detect_theme;
     use wfinfo::ocr::extract_parts;
+    use wfinfo::testing::Label;
 
     use super::*;
 
@@ -139,8 +143,13 @@ mod test {
             "WFI test images/FullScreenShot 2020-06-30 20-06-2083.png",
             "WFI test images/FullScreenShot_2020-02-05_13-25-4618.png",
         ];
-        for filename in filenames {
-            let image = Reader::open(filename).unwrap().decode().unwrap();
+        let labels: IndexMap<String, Label> =
+            serde_json::from_str(&read_to_string("WFI test images/labels.json").unwrap()).unwrap();
+        for (filename, label) in labels {
+            let image = Reader::open("WFI test images/".to_string() + &filename)
+                .unwrap()
+                .decode()
+                .unwrap();
             let text = image_to_strings(image);
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
             println!("{:#?}", text);

@@ -6,14 +6,9 @@ use serde::Serialize;
 use wfinfo::{
     database::Database,
     ocr::{detect_theme, image_to_strings, normalize_string},
+    testing::Label,
     theme::Theme,
 };
-
-#[derive(Serialize)]
-struct Label {
-    theme: Theme,
-    items: Vec<String>,
-}
 
 fn main() {
     let mut labels = IndexMap::new();
