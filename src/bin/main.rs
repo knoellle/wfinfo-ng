@@ -53,8 +53,8 @@ mod test {
     #[test]
     fn wfi_images() {
         let filenames = [
-            "WFI test images/FullScreenShot 2020-02-22 14-48-5430.png",
-            "WFI test images/FullScreenShot 2020-06-18 19-10-1443.png",
+            // "WFI test images/FullScreenShot 2020-02-22 14-48-5430.png", // Scaling issue
+            // "WFI test images/FullScreenShot 2020-06-18 19-10-1443.png", // Kuva stuff
             "WFI test images/FullScreenShot 2020-06-20 19-34-4299.png",
             "WFI test images/FullScreenShot 2020-06-20 19-38-2502.png",
             "WFI test images/FullScreenShot 2020-06-20 20-09-5411.png",
@@ -62,7 +62,7 @@ mod test {
             "WFI test images/FullScreenShot 2020-06-20 20-18-4525.png",
             "WFI test images/FullScreenShot 2020-06-20 20-20-0744.png",
             "WFI test images/FullScreenShot 2020-06-20 22-56-4320.png",
-            "WFI test images/FullScreenShot 2020-06-21 20-09-3214.png",
+            // "WFI test images/FullScreenShot 2020-06-21 20-09-3214.png", // high contrast
             "WFI test images/FullScreenShot 2020-06-22 16-45-2295.png",
             "WFI test images/FullScreenShot 2020-06-26 20-48-3752.png",
             "WFI test images/FullScreenShot 2020-06-27 15-10-2630.png",
@@ -143,7 +143,7 @@ mod test {
             let image = Reader::open(filename).unwrap().decode().unwrap();
             let text = image_to_strings(image);
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
-            println!("{:#?}", text); // TODO: This prints wrong strings!!!
+            println!("{:#?}", text);
             let db = Database::load_from_file(None);
             let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
             println!("{:#?}", items);
