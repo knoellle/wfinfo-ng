@@ -155,7 +155,7 @@ impl MyApp {
             *pixel = if is_theme { Rgb([0; 3]) } else { Rgb([255; 3]) }
         }
 
-        let detections = ocr::image_to_strings(image.to_owned());
+        let detections = vec![]; //ocr::image_to_strings(image.to_owned());
 
         (DynamicImage::ImageRgb8(new_image), detections)
     }
