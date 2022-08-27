@@ -49,7 +49,9 @@ impl Database {
             .min_by_key(|item| levenshtein(&item.name, needle));
 
         best_match.and_then(|item| {
-            if levenshtein(&item.name, needle) <= threshold.unwrap_or(item.name.len() / 3) {
+            if levenshtein(&item.name.replace(" ", ""), needle)
+                <= threshold.unwrap_or(item.name.len() / 3)
+            {
                 Some(item)
             } else {
                 None
@@ -72,12 +74,12 @@ mod test {
         let db = Database::load_from_file(None);
 
         let item = db
-            .find_item("Titania Prime Blueprint", Some(0))
+            .find_item("TitaniaPrimeBlueprint", Some(0))
             .expect("Failed to find Titania Prime Blueprint in database");
         assert_eq!(item.name, "Titania Prime Blueprint");
 
         let item = db
-            .find_item("Octavia Prime Blueprint", Some(0))
+            .find_item("OctaviaPrimeBlueprint", Some(0))
             .expect("Failed to find Octavia Prime Blueprint in database");
         assert_eq!(item.name, "Octavia Prime Blueprint");
     }
