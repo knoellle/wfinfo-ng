@@ -184,9 +184,9 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         }
     }
 
-    // println!("top_five: {:?}", top_five);
-    // scaling = top_five[4] as f32 + 50.0;
-    scaling = 100.0;
+    println!("top_five: {:?}", top_five);
+    scaling = top_five[4] as f32 + 50.0;
+    println!("scaling: {:?}", top_five);
 
     scaling = scaling / 100.0;
     let high_scaling = if scaling < 1.0 {
