@@ -38,6 +38,18 @@ impl Database {
             today_vol: 0,
             custom_avg: 0.0,
         });
+        items.push(Item {
+            name: "1,200 X Kuva".to_string(),
+            yesterday_vol: 0,
+            today_vol: 0,
+            custom_avg: 0.0,
+        });
+        items.push(Item {
+            name: "Riven Sliver".to_string(),
+            yesterday_vol: 0,
+            today_vol: 0,
+            custom_avg: 0.0,
+        });
 
         Database { items }
     }
