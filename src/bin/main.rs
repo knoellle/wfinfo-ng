@@ -153,11 +153,21 @@ mod test {
             let text = image_to_strings(image);
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
             println!("{:#?}", text);
+
             let db = Database::load_from_file(None);
             let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
             println!("{:#?}", items);
             println!("{}", filename);
-            assert!(items.iter().all(|item| item.is_some()));
+
+            let item_names = items.iter().map(|item| item.map(|item| item.name.clone()));
+
+            for (result, expectation) in item_names.zip(label.items) {
+                if expectation.is_empty() {
+                    assert_eq!(result, None)
+                } else {
+                    assert_eq!(result, Some(expectation))
+                }
+            }
         }
     }
 
