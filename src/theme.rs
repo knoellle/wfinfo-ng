@@ -81,6 +81,11 @@ impl Theme {
                     && test.lightness > 0.25
                     && test.hue.to_degrees().abs() <= 10.0
             }
+            Theme::HighContrast => {
+                test.saturation >= 0.60
+                    && (0.23..0.45).contains(&test.lightness)
+                    && (-160.0..-145.0).contains(&test.hue.to_degrees())
+            }
             _ => {
                 color_difference((primary, test)) < 0.2 || color_difference((secondary, test)) < 0.2
             }
