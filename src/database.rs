@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fs::read_to_string, path::Path};
 
-use anyhow::Context;
 use levenshtein::levenshtein;
 use serde::Deserialize;
 
