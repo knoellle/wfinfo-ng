@@ -64,6 +64,16 @@ impl Database {
                         })
                     })
             })
+            .chain(
+                filtered_items
+                    .ignored_items
+                    .iter()
+                    .map(|(name, _item)| Item {
+                        name: name.to_owned(),
+                        platinum: 0.0,
+                        ducats: 0,
+                    }),
+            )
             .collect();
 
         Database { items }

@@ -219,7 +219,7 @@ fn run_detection(capturer: &mut Capturer) {
     let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
     for item in items {
         if let Some(item) = item {
-            println!("{}\n\t{}", item.name, item.custom_avg);
+            println!("{}\n\t{}", item.name, item.platinum);
         } else {
             println!("Unknown item\n\tUnknown");
         }
