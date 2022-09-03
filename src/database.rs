@@ -1,55 +1,56 @@
-use std::{fs::read_to_string, path::Path};
+use std::{collections::HashMap, fs::read_to_string, path::Path};
 
+use anyhow::Context;
 use levenshtein::levenshtein;
 use serde::Deserialize;
-use serde_aux::field_attributes::deserialize_number_from_string;
+
+use crate::wfinfo_data::{item_data::FilteredItems, price_data::PriceItem};
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Database {
+    items: Vec<Item>,
+}
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Item {
     pub name: String,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
-    pub yesterday_vol: u32,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
-    pub today_vol: u32,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
-    pub custom_avg: f32,
-}
-
-pub struct Database {
-    items: Vec<Item>,
+    pub platinum: f32,
+    pub ducats: usize,
 }
 
 impl Database {
     pub fn load_from_file(file: Option<&Path>) -> Database {
         // download file from: https://api.warframestat.us/wfinfo/prices
         let text = read_to_string(file.unwrap_or_else(|| Path::new("prices.json"))).unwrap();
-        let mut items: Vec<Item> = serde_json::from_str(&text).unwrap();
+        let price_list: Vec<PriceItem> = serde_json::from_str(&text).unwrap();
+        let price_table: HashMap<String, f32> = price_list
+            .into_iter()
+            .map(|item| (item.name, item.custom_avg))
+            .collect();
 
-        items.iter_mut().for_each(|item| {
-            item.name = item
-                .name
-                .replace("Systems", "Systems Blueprint")
-                .replace("Neuroptics", "Neuroptics Blueprint")
-                .replace("Chassis", "Chassis Blueprint")
-        });
-        items.push(Item {
-            name: "Forma Blueprint".to_string(),
-            yesterday_vol: 0,
-            today_vol: 0,
-            custom_avg: 0.0,
-        });
-        items.push(Item {
-            name: "1,200 X Kuva".to_string(),
-            yesterday_vol: 0,
-            today_vol: 0,
-            custom_avg: 0.0,
-        });
-        items.push(Item {
-            name: "Riven Sliver".to_string(),
-            yesterday_vol: 0,
-            today_vol: 0,
-            custom_avg: 0.0,
-        });
+        let text =
+            read_to_string(file.unwrap_or_else(|| Path::new("filtered_items.json"))).unwrap();
+        let filtered_items: FilteredItems = serde_json::from_str(&text).unwrap();
+
+        let items = filtered_items
+            .eqmt
+            .iter()
+            .flat_map(|(_name, equipment_item)| {
+                equipment_item
+                    .parts
+                    .iter()
+                    .filter_map(|(name, ducat_item)| {
+                        let platinum = *price_table.get(name)?;
+                        let ducats = ducat_item.ducats;
+
+                        Some(Item {
+                            name: name.to_string(),
+                            platinum,
+                            ducats,
+                        })
+                    })
+            })
+            .collect();
 
         Database { items }
     }
@@ -58,6 +59,7 @@ impl Database {
         let best_match = self
             .items
             .iter()
+            .filter(|item| !item.name.ends_with("Set"))
             .min_by_key(|item| levenshtein(&item.name, needle));
 
         best_match.and_then(|item| {
