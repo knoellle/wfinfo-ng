@@ -2,12 +2,10 @@ use std::{fs::write, path::PathBuf};
 
 use image::io::Reader;
 use indexmap::IndexMap;
-use serde::Serialize;
 use wfinfo::{
     database::Database,
     ocr::{detect_theme, image_to_strings, normalize_string},
     testing::Label,
-    theme::Theme,
 };
 
 fn main() {
@@ -27,7 +25,7 @@ fn main() {
         let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
         for item in items.iter() {
             if let Some(item) = item {
-                println!("{}\n", item.name);
+                println!("{}: {}\n", item.name, item.platinum);
             } else {
                 println!("Unknown item\n");
             }
@@ -52,6 +50,7 @@ fn main() {
                 items: item_names,
             },
         );
+
         println!("{:?}", filepath);
 
         // let mut buffer = "".to_string();
