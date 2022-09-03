@@ -18,11 +18,11 @@ fn main() {
         let detections = image_to_strings(image.clone());
         println!("{:#?}", detections);
 
-        let text = detections.iter().map(|s| normalize_string(s));
+        let text: Vec<_> = detections.iter().map(|s| normalize_string(s)).collect();
         println!("{:#?}", text);
 
         let db = Database::load_from_file(None);
-        let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
+        let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
         for item in items.iter() {
             if let Some(item) = item {
                 println!("{}: {}\n", item.name, item.platinum);
