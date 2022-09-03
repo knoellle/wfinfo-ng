@@ -25,17 +25,21 @@ pub mod item_data {
 
     #[derive(Clone, Debug, Deserialize)]
     pub enum EquipmentType {
+        Warframes,
         Primary,
         Secondary,
-        Warframe,
-        Sentinel,
+        Melee,
+        Sentinels,
         Archwing,
+        #[serde(rename = "Arch-Gun")]
+        ArchGun,
+        Skins,
     }
 
     #[derive(Clone, Debug, Deserialize)]
     pub struct EquipmentItem {
         #[serde(rename = "type")]
-        pub item_type: String,
+        pub item_type: EquipmentType,
         pub vaulted: bool,
         pub parts: HashMap<String, DucatItem>,
     }

@@ -3,7 +3,10 @@ use std::{collections::HashMap, fs::read_to_string, path::Path};
 use levenshtein::levenshtein;
 use serde::Deserialize;
 
-use crate::wfinfo_data::{item_data::FilteredItems, price_data::PriceItem};
+use crate::wfinfo_data::{
+    item_data::{EquipmentType, FilteredItems},
+    price_data::PriceItem,
+};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Database {
@@ -42,8 +45,20 @@ impl Database {
                         let platinum = *price_table.get(name)?;
                         let ducats = ducat_item.ducats;
 
+                        let item_is_part = name.ends_with("Systems")
+                            || name.ends_with("Neuroptics")
+                            || name.ends_with("Chassis")
+                            || name.ends_with("Harness")
+                            || name.ends_with("Wings");
+                        let name = match equipment_item.item_type {
+                            EquipmentType::Warframes | EquipmentType::Archwing if item_is_part => {
+                                name.to_owned() + " Blueprint"
+                            }
+                            _ => name.to_owned(),
+                        };
+
                         Some(Item {
-                            name: name.to_string(),
+                            name,
                             platinum,
                             ducats,
                         })
