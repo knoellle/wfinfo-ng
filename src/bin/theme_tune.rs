@@ -122,6 +122,8 @@ impl eframe::App for MyApp {
                 image.show_scaled(ui, 3.0);
                 if let Some(detections) = self.ocr_result.as_ref() {
                     ui.label(format!("{:#?}", detections));
+                } else {
+                    ui.spinner();
                 }
             }
             None => {
@@ -168,6 +170,7 @@ impl eframe::App for MyApp {
             {
                 self.image = None;
                 self.ocr_request_sender.send(self.settings.clone()).unwrap();
+                self.ocr_result = None;
             };
         });
     }
