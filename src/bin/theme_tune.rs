@@ -1,10 +1,20 @@
-use std::ops::Range;
+use std::{
+    sync::mpsc::{
+        self, channel, Receiver, Sender,
+        TryRecvError::{Disconnected, Empty},
+    },
+    thread,
+};
 
 use eframe::{egui, epaint::ColorImage};
 use egui_extras::RetainedImage;
 use image::{io::Reader, DynamicImage, Rgb};
 use palette::{FromColor, Hsl, Srgb};
-use wfinfo::theme::Theme;
+use wfinfo::{
+    database::Database,
+    ocr::{self, normalize_string},
+    theme::{HslRange, Theme},
+};
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -16,48 +26,101 @@ fn main() {
 }
 
 struct MyApp {
-    original_image: Option<DynamicImage>,
+    original_image: DynamicImage,
     image: Option<RetainedImage>,
-    detections: Option<Vec<String>>,
 
-    saturation: Range<f32>,
-    lightness: Range<f32>,
-    hue: Range<f32>,
+    ocr_request_sender: Sender<HslRange<f32>>,
+    ocr_response_receiver: Receiver<Vec<(String, String)>>,
+    ocr_result: Option<Vec<(String, String)>>,
+
+    settings: HslRange<f32>,
 }
 
 impl Default for MyApp {
     fn default() -> Self {
-        let original_image = Some(
-            Reader::open(std::env::args().nth(1).unwrap())
-                .unwrap()
-                .decode()
-                .unwrap(),
-        );
-        Self {
-            original_image,
-            image: None,
-            detections: None,
-
+        let original_image = Reader::open(std::env::args().nth(1).unwrap())
+            .unwrap()
+            .decode()
+            .unwrap();
+        let settings = HslRange {
             saturation: 0.50..1.0,
             lightness: 0.15..1.0,
             hue: -10.0..10.0,
+        };
+        let (ocr_request_sender, ocr_response_receiver) = spawn_ocr_thread(&original_image);
+        Self {
+            original_image,
+            image: None,
+
+            ocr_request_sender,
+            ocr_response_receiver,
+            ocr_result: None,
+
+            settings,
         }
     }
 }
 
+fn spawn_ocr_thread(
+    image: &DynamicImage,
+) -> (Sender<HslRange<f32>>, Receiver<Vec<(String, String)>>) {
+    let (request_sender, request_receiver): (Sender<_>, Receiver<_>) = channel();
+    let (response_sender, response_receiver) = channel();
+    let image = image.to_owned();
+
+    thread::spawn(move || loop {
+        let database = Database::load_from_file(None, None);
+        loop {
+            let mut last_request: HslRange<f32> = request_receiver.recv().unwrap();
+            loop {
+                match request_receiver.try_recv() {
+                    Ok(request) => last_request = request,
+                    Err(Empty) => break,
+                    Err(Disconnected) => return,
+                }
+            }
+            let strings = ocr::image_to_strings(
+                image.clone(),
+                Some(Theme::Custom(last_request.to_ordered())),
+            );
+            let results = strings
+                .iter()
+                .map(|string| {
+                    let item = database.find_item(&normalize_string(string), None);
+                    (
+                        string.to_owned(),
+                        item.map(|item| item.name.to_owned())
+                            .unwrap_or("None".to_string()),
+                    )
+                })
+                .collect();
+            response_sender.send(results).unwrap();
+        }
+    });
+
+    (request_sender, response_receiver)
+}
+
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if let Some(original_image) = self.original_image.as_ref() {
-            if self.image.is_none() {
-                let (image, detections) = self.process_image(original_image);
-                self.image = Some(convert_image(&image));
-                self.detections = Some(detections);
+        if self.image.is_none() {
+            let image = self.process_image(&self.original_image);
+            self.image = Some(convert_image(&image));
+            self.ocr_request_sender.send(self.settings.clone()).unwrap();
+        }
+
+        match self.ocr_response_receiver.try_recv() {
+            Ok(response) => self.ocr_result = Some(response),
+            Err(Empty) => {}
+            other => {
+                other.unwrap();
             }
         }
+
         egui::CentralPanel::default().show(ctx, |ui| match self.image.as_ref() {
             Some(image) => {
                 image.show_scaled(ui, 3.0);
-                if let Some(detections) = self.detections.as_ref() {
+                if let Some(detections) = self.ocr_result.as_ref() {
                     ui.label(format!("{:#?}", detections));
                 }
             }
@@ -68,41 +131,50 @@ impl eframe::App for MyApp {
         egui::TopBottomPanel::bottom("Bottom Panel").show(ctx, |ui| {
             if ui
                 .add(
-                    egui::Slider::new(&mut self.saturation.start, 0.0..=1.0).text("Saturation min"),
+                    egui::Slider::new(&mut self.settings.saturation.start, 0.0..=1.0)
+                        .text("Saturation min"),
                 )
                 .changed()
                 || ui
                     .add(
-                        egui::Slider::new(&mut self.saturation.end, 0.0..=1.0)
+                        egui::Slider::new(&mut self.settings.saturation.end, 0.0..=1.0)
                             .text("Saturation max"),
                     )
                     .changed()
                 || ui
                     .add(
-                        egui::Slider::new(&mut self.lightness.start, 0.0..=1.0)
+                        egui::Slider::new(&mut self.settings.lightness.start, 0.0..=1.0)
                             .text("Lightness min"),
                     )
                     .changed()
                 || ui
                     .add(
-                        egui::Slider::new(&mut self.lightness.end, 0.0..=1.0).text("Lightness max"),
+                        egui::Slider::new(&mut self.settings.lightness.end, 0.0..=1.0)
+                            .text("Lightness max"),
                     )
                     .changed()
                 || ui
-                    .add(egui::Slider::new(&mut self.hue.start, -180.0..=180.0).text("Hue min"))
+                    .add(
+                        egui::Slider::new(&mut self.settings.hue.start, -180.0..=180.0)
+                            .text("Hue min"),
+                    )
                     .changed()
                 || ui
-                    .add(egui::Slider::new(&mut self.hue.end, -180.0..=180.0).text("Hue max"))
+                    .add(
+                        egui::Slider::new(&mut self.settings.hue.end, -180.0..=180.0)
+                            .text("Hue max"),
+                    )
                     .changed()
             {
-                self.image = None
+                self.image = None;
+                self.ocr_request_sender.send(self.settings.clone()).unwrap();
             };
         });
     }
 }
 
 impl MyApp {
-    fn process_image(&self, image: &DynamicImage) -> (DynamicImage, Vec<String>) {
+    fn process_image(&self, image: &DynamicImage) -> DynamicImage {
         const PIXEL_REWARD_WIDTH: f32 = 968.0;
         const PIXEL_REWARD_HEIGHT: f32 = 235.0;
         const PIXEL_REWARD_YDISPLAY: f32 = 316.0;
@@ -135,9 +207,6 @@ impl MyApp {
             )
             .to_rgb8();
 
-        let _primary = Theme::Stalker.primary();
-        let _secondary = Theme::Stalker.secondary();
-
         for pixel in new_image.pixels_mut() {
             let rgb = Srgb::from_components((
                 pixel.0[0] as f32 / 255.0,
@@ -146,18 +215,14 @@ impl MyApp {
             ));
             let test = Hsl::from_color(rgb);
 
-            let is_theme = self.saturation.contains(&test.saturation)
-                && self.lightness.contains(&test.lightness)
-                && self.hue.contains(&test.hue.to_degrees());
-            // let is_theme = color_difference((test, primary)) < self.hue
-            //     || color_difference((test, secondary)) < self.hue;
+            let is_theme = self.settings.saturation.contains(&test.saturation)
+                && self.settings.lightness.contains(&test.lightness)
+                && self.settings.hue.contains(&test.hue.to_degrees());
 
             *pixel = if is_theme { Rgb([0; 3]) } else { Rgb([255; 3]) }
         }
 
-        let detections = vec![]; //ocr::image_to_strings(image.to_owned());
-
-        (DynamicImage::ImageRgb8(new_image), detections)
+        DynamicImage::ImageRgb8(new_image)
     }
 }
 

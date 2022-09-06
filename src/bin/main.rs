@@ -29,10 +29,10 @@ mod test {
             .unwrap()
             .decode()
             .unwrap();
-        let text = image_to_strings(image);
+        let text = image_to_strings(image, None);
         let text = text.iter().map(|s| normalize_string(s));
         println!("{:#?}", text);
-        let db = Database::load_from_file(None);
+        let db = Database::load_from_file(None, None);
         let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
         println!("{:#?}", items);
 
@@ -150,11 +150,11 @@ mod test {
                 .unwrap()
                 .decode()
                 .unwrap();
-            let text = image_to_strings(image);
+            let text = image_to_strings(image, None);
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
             println!("{:#?}", text);
 
-            let db = Database::load_from_file(None);
+            let db = Database::load_from_file(None, None);
             let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
             println!("{:#?}", items);
             println!("{}", filename);
@@ -212,10 +212,10 @@ fn run_detection(capturer: &mut Capturer) {
     let dimensions = capturer.geometry();
     let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
     println!("Converted");
-    let text = image_to_strings(image.clone());
+    let text = image_to_strings(image.clone(), None);
     let text = text.iter().map(|s| normalize_string(s));
     println!("{:#?}", text);
-    let db = Database::load_from_file(None);
+    let db = Database::load_from_file(None, None);
     let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
     for item in items {
         if let Some(item) = item {

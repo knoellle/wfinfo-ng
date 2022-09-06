@@ -1,8 +1,38 @@
+use std::ops::Range;
+
 use image::Rgb;
-use palette::{FromColor, Hsl, Srgb};
+use ordered_float::OrderedFloat;
+use palette::{FromColor, Hsl, RgbHue, Srgb};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq, Serialize, Deserialize)]
+pub struct HslRange<T> {
+    pub hue: Range<T>,
+    pub saturation: Range<T>,
+    pub lightness: Range<T>,
+}
+
+impl HslRange<OrderedFloat<f32>> {
+    fn get_average(&self) -> Hsl {
+        Hsl::from_components((
+            RgbHue::from_degrees(((self.hue.start + self.hue.end) / 2.0).0),
+            ((self.saturation.start + self.saturation.end) / 2.0).0,
+            ((self.lightness.start + self.lightness.end) / 2.0).0,
+        ))
+    }
+}
+
+impl HslRange<f32> {
+    pub fn to_ordered(&self) -> HslRange<OrderedFloat<f32>> {
+        HslRange {
+            hue: OrderedFloat(self.hue.start)..OrderedFloat(self.hue.end),
+            saturation: OrderedFloat(self.saturation.start)..OrderedFloat(self.saturation.end),
+            lightness: OrderedFloat(self.lightness.start)..OrderedFloat(self.lightness.end),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Theme {
     Vitruvian,
     Stalker,
@@ -19,6 +49,7 @@ pub enum Theme {
     Equinox,
     DarkLotus,
     Zephyr,
+    Custom(HslRange<OrderedFloat<f32>>),
 }
 
 pub fn color_difference(colors: (Hsl, Hsl)) -> f32 {
@@ -37,7 +68,7 @@ impl Theme {
         ));
         let hsl = Hsl::from_color(rgb);
         Self::iter()
-            .map(|theme| (*theme, color_difference((theme.primary(), hsl))))
+            .map(|theme| (theme.clone(), color_difference((theme.primary(), hsl))))
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .unwrap()
     }
@@ -85,6 +116,11 @@ impl Theme {
                 test.saturation >= 0.60
                     && (0.23..0.45).contains(&test.lightness)
                     && (-160.0..-145.0).contains(&test.hue.to_degrees())
+            }
+            Theme::Custom(range) => {
+                range.hue.contains(&OrderedFloat(test.hue.to_degrees()))
+                    && range.saturation.contains(&OrderedFloat(test.saturation))
+                    && range.lightness.contains(&OrderedFloat(test.lightness))
             }
             _ => {
                 color_difference((primary, test)) < 0.2 || color_difference((secondary, test)) < 0.2
@@ -155,6 +191,7 @@ impl Theme {
             Theme::Equinox => (158, 159, 167),
             Theme::DarkLotus => (140, 119, 147),
             Theme::Zephyr => (253, 132, 2),
+            Theme::Custom(range) => return range.get_average(),
         };
 
         let components = (
@@ -182,6 +219,7 @@ impl Theme {
             Theme::Equinox => (232, 227, 227),
             Theme::DarkLotus => (189, 169, 237),
             Theme::Zephyr => (255, 53, 0),
+            Theme::Custom(range) => return range.get_average(),
         };
 
         let components = (

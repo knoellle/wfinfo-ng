@@ -21,9 +21,9 @@ pub struct Item {
 }
 
 impl Database {
-    pub fn load_from_file(file: Option<&Path>) -> Database {
+    pub fn load_from_file(prices: Option<&Path>, filtered_items: Option<&Path>) -> Database {
         // download file from: https://api.warframestat.us/wfinfo/prices
-        let text = read_to_string(file.unwrap_or_else(|| Path::new("prices.json"))).unwrap();
+        let text = read_to_string(prices.unwrap_or_else(|| Path::new("prices.json"))).unwrap();
         let price_list: Vec<PriceItem> = serde_json::from_str(&text).unwrap();
         let price_table: HashMap<String, f32> = price_list
             .into_iter()
@@ -31,7 +31,8 @@ impl Database {
             .collect();
 
         let text =
-            read_to_string(file.unwrap_or_else(|| Path::new("filtered_items.json"))).unwrap();
+            read_to_string(filtered_items.unwrap_or_else(|| Path::new("filtered_items.json")))
+                .unwrap();
         let filtered_items: FilteredItems = serde_json::from_str(&text).unwrap();
 
         let items = filtered_items

@@ -46,7 +46,12 @@ pub fn detect_theme(image: &DynamicImage) -> Theme {
 
     println!("{:#?}", weights);
 
-    *weights.iter().max_by(|a, b| a.1.total_cmp(b.1)).unwrap().0
+    weights
+        .iter()
+        .max_by(|a, b| a.1.total_cmp(b.1))
+        .unwrap()
+        .0
+        .to_owned()
 }
 
 pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
@@ -235,10 +240,10 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
 
     partial_screenshot.save("partial_screenshot.png").unwrap();
 
-    filter_and_separater_parts_from_part_box(partial_screenshot, theme)
+    filter_and_separate_parts_from_part_box(partial_screenshot, theme)
 }
 
-pub fn filter_and_separater_parts_from_part_box(
+pub fn filter_and_separate_parts_from_part_box(
     image: DynamicImage,
     theme: Theme,
 ) -> Vec<DynamicImage> {
@@ -330,9 +335,8 @@ pub fn normalize_string(string: &str) -> String {
     string.replace(|c: char| !c.is_ascii_alphabetic(), "")
 }
 
-pub fn image_to_strings(image: DynamicImage) -> Vec<String> {
-    let theme = detect_theme(&image);
-    println!("Theme: {:?}", theme);
+pub fn image_to_strings(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
+    let theme = theme.unwrap_or_else(|| detect_theme(&image));
     let parts = extract_parts(&image, theme);
     println!("Extracted part images");
 
