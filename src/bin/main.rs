@@ -249,7 +249,13 @@ fn main() {
 
                 let reader = BufReader::new(f.by_ref());
                 for line in reader.lines() {
-                    let line = line.unwrap();
+                    let line = match line {
+                        Ok(line) => line,
+                        Err(err) => {
+                            println!("Error reading line: {}", err);
+                            continue;
+                        }
+                    };
                     // println!("> {:?}", line);
                     if line.contains("Pause countdown done")
                         || line.contains("Got rewards")
