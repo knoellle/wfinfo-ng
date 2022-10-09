@@ -266,13 +266,14 @@ fn main() {
                 }
 
                 if reward_screen_detected {
-                    sleep(Duration::from_millis(500));
+                    println!("Detected, waiting...");
+                    sleep(Duration::from_millis(1500));
+                    println!("Capturing");
                     run_detection(&mut capturer);
                 }
 
                 position = f.metadata().unwrap().len();
-                println!("{}", position);
-                // position = reader.stream_position().unwrap();
+                println!("Log position: {}", position);
             }
             Ok(_) => {}
             Err(err) => {
