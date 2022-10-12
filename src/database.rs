@@ -3,19 +3,24 @@ use std::{collections::HashMap, fs::read_to_string, path::Path};
 use levenshtein::levenshtein;
 use serde::Deserialize;
 
-use crate::wfinfo_data::{
-    item_data::{EquipmentType, FilteredItems},
-    price_data::PriceItem,
+use crate::{
+    statistics::{self, Bucket},
+    wfinfo_data::{
+        item_data::{EquipmentType, FilteredItems, Refinement, Relic, Relics},
+        price_data::PriceItem,
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Database {
     items: Vec<Item>,
+    pub relics: Relics,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Item {
     pub name: String,
+    pub drop_name: String,
     pub platinum: f32,
     pub ducats: usize,
 }
@@ -51,7 +56,7 @@ impl Database {
                             || name.ends_with("Chassis")
                             || name.ends_with("Harness")
                             || name.ends_with("Wings");
-                        let name = match equipment_item.item_type {
+                        let drop_name = match equipment_item.item_type {
                             EquipmentType::Warframes | EquipmentType::Archwing if item_is_part => {
                                 name.to_owned() + " Blueprint"
                             }
@@ -59,7 +64,8 @@ impl Database {
                         };
 
                         Some(Item {
-                            name,
+                            name: name.to_string(),
+                            drop_name,
                             platinum,
                             ducats,
                         })
@@ -71,13 +77,15 @@ impl Database {
                     .iter()
                     .map(|(name, _item)| Item {
                         name: name.to_owned(),
+                        drop_name: name.to_owned(),
                         platinum: 0.0,
                         ducats: 0,
                     }),
             )
             .collect();
+        let relics = filtered_items.relics;
 
-        Database { items }
+        Database { items, relics }
     }
 
     pub fn find_item(&self, needle: &str, threshold: Option<usize>) -> Option<&Item> {
@@ -97,6 +105,77 @@ impl Database {
             }
         })
     }
+
+    pub fn find_item_exact(&self, needle: &str) -> Option<&Item> {
+        self.items.iter().find(|item| item.name == needle)
+    }
+
+    fn relic_to_bucket(&self, relic: &Relic, refinement: Refinement) -> Bucket {
+        let common_chance = refinement.common_chance();
+        let uncommon_chance = refinement.uncommon_chance();
+        let rare_chance = refinement.rare_chance();
+
+        let item_names = [
+            (&relic.common1, common_chance),
+            (&relic.common2, common_chance),
+            (&relic.common3, common_chance),
+            (&relic.uncommon1, uncommon_chance),
+            (&relic.uncommon2, uncommon_chance),
+            (&relic.rare1, rare_chance),
+        ];
+        let items = item_names
+            .into_iter()
+            .map(|(name, chance)| statistics::Item {
+                value: self.find_item_exact(name).unwrap().platinum,
+                probability: chance,
+            })
+            .collect();
+        Bucket::new(items)
+    }
+
+    pub fn single_relic_value(&self, relic: &Relic, refinement: Refinement) -> f32 {
+        let common_chance = refinement.common_chance();
+        let uncommon_chance = refinement.uncommon_chance();
+        let rare_chance = refinement.rare_chance();
+
+        let value = 0.0
+            + self.find_item_exact(&relic.common1).unwrap().platinum * common_chance
+            + self.find_item_exact(&relic.common2).unwrap().platinum * common_chance
+            + self.find_item_exact(&relic.common3).unwrap().platinum * common_chance
+            + self.find_item_exact(&relic.uncommon1).unwrap().platinum * uncommon_chance
+            + self.find_item_exact(&relic.uncommon2).unwrap().platinum * uncommon_chance
+            + self.find_item_exact(&relic.rare1).unwrap().platinum * rare_chance;
+
+        let item_names = [
+            (&relic.common1, common_chance),
+            (&relic.common2, common_chance),
+            (&relic.common3, common_chance),
+            (&relic.uncommon1, uncommon_chance),
+            (&relic.uncommon2, uncommon_chance),
+            (&relic.rare1, rare_chance),
+        ];
+        let value2: f32 = item_names
+            .into_iter()
+            .map(|(name, chance)| {
+                let plat = self.find_item_exact(name).unwrap().platinum;
+                println!("{plat} * {chance}");
+                plat * chance
+            })
+            .sum();
+        println!("{value} vs {value2}");
+
+        return value;
+    }
+
+    pub fn shared_relic_value(
+        &self,
+        relic: &Relic,
+        refinement: Refinement,
+        number_of_relics: i32,
+    ) -> f32 {
+        let bucket = self.relic_to_bucket(relic, refinement);
+        bucket.expectation_of_best_of_n(number_of_relics)
+    }
 }
 
 #[cfg(test)]
@@ -105,12 +184,12 @@ mod test {
 
     #[test]
     pub fn can_load_database() {
-        Database::load_from_file(None);
+        Database::load_from_file(None, None);
     }
 
     #[test]
     pub fn can_find_items() {
-        let db = Database::load_from_file(None);
+        let db = Database::load_from_file(None, None);
 
         let item = db
             .find_item("TitaniaPrimeBlueprint", Some(0))
@@ -125,7 +204,7 @@ mod test {
 
     #[test]
     pub fn can_find_fuzzy_items() {
-        let db = Database::load_from_file(None);
+        let db = Database::load_from_file(None, None);
 
         let item = db
             .find_item("Akstlett Prlme Recver", None)

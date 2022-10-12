@@ -15,13 +15,13 @@ fn main() {
         let filepath = PathBuf::from(argument);
         let image = Reader::open(&filepath).unwrap().decode().unwrap();
 
-        let detections = image_to_strings(image.clone());
+        let detections = image_to_strings(image.clone(), None);
         println!("{:#?}", detections);
 
         let text: Vec<_> = detections.iter().map(|s| normalize_string(s)).collect();
         println!("{:#?}", text);
 
-        let db = Database::load_from_file(None);
+        let db = Database::load_from_file(None, None);
         let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
         for item in items.iter() {
             if let Some(item) = item {
