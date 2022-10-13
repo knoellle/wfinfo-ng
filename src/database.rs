@@ -187,10 +187,53 @@ impl Database {
         let bucket = self.relic_to_bucket(relic, refinement);
         bucket.expectation_of_best_of_n(number_of_relics)
     }
+
+    pub fn shared_relic_value_bruteforce(
+        &self,
+        relic: &Relic,
+        refinement: Refinement,
+        number_of_relics: i32,
+    ) -> f32 {
+        let common_chance = refinement.common_chance();
+        let uncommon_chance = refinement.uncommon_chance();
+        let rare_chance = refinement.rare_chance();
+
+        let items = [
+            (&relic.common1, common_chance),
+            (&relic.common2, common_chance),
+            (&relic.common3, common_chance),
+            (&relic.uncommon1, uncommon_chance),
+            (&relic.uncommon2, uncommon_chance),
+            (&relic.rare1, rare_chance),
+        ];
+
+        let mut value = 0.0;
+        for item1 in items.iter() {
+            for item2 in items.iter() {
+                for item3 in items.iter() {
+                    for item4 in items.iter() {
+                        value += [item1.0, item2.0, item3.0, item4.0]
+                            .iter()
+                            .map(|name| self.find_item_exact(name).unwrap().platinum)
+                            .max_by(|a, b| a.total_cmp(b))
+                            .unwrap()
+                            * item1.1
+                            * item2.1
+                            * item3.1
+                            * item4.1
+                    }
+                }
+            }
+        }
+
+        value
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use approx::assert_relative_eq;
+
     use super::*;
 
     #[test]
@@ -231,5 +274,43 @@ mod test {
             .find_item("Oclavia Prime Syslems\nBlueprint\n", None)
             .expect("Failed to fuzzy find Octavia Prime Blueprint in database");
         assert_eq!(item.name, "Octavia Prime Systems Blueprint");
+    }
+
+    #[test]
+    fn validate_shared_relic_values() {
+        let database = Database::load_from_file(None, None);
+
+        for (name, relic) in database.relics.lith.iter() {
+            println!("{} {:#?}", name, relic);
+            assert_relative_eq!(
+                database.shared_relic_value(relic, Refinement::Radiant, 4),
+                database.shared_relic_value_bruteforce(relic, Refinement::Radiant, 4),
+                epsilon = 0.01
+            )
+        }
+        for (name, relic) in database.relics.meso.iter() {
+            println!("{} {:#?}", name, relic);
+            assert_relative_eq!(
+                database.shared_relic_value(relic, Refinement::Radiant, 4),
+                database.shared_relic_value_bruteforce(relic, Refinement::Radiant, 4),
+                epsilon = 0.01
+            )
+        }
+        for (name, relic) in database.relics.neo.iter() {
+            println!("{} {:#?}", name, relic);
+            assert_relative_eq!(
+                database.shared_relic_value(relic, Refinement::Radiant, 4),
+                database.shared_relic_value_bruteforce(relic, Refinement::Radiant, 4),
+                epsilon = 0.01
+            )
+        }
+        for (name, relic) in database.relics.axi.iter() {
+            println!("{} {:#?}", name, relic);
+            assert_relative_eq!(
+                database.shared_relic_value(relic, Refinement::Radiant, 4),
+                database.shared_relic_value_bruteforce(relic, Refinement::Radiant, 4),
+                epsilon = 0.01
+            )
+        }
     }
 }
