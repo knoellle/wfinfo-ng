@@ -1,14 +1,17 @@
+#[derive(Copy, Clone, Debug)]
 pub struct Item {
     pub value: f32,
     pub probability: f32,
 }
 
+#[derive(Clone, Debug)]
 pub struct Bucket {
     items: Vec<Item>,
 }
 
 impl Bucket {
-    pub fn new(items: Vec<Item>) -> Self {
+    pub fn new(mut items: Vec<Item>) -> Self {
+        items.sort_by(|a, b| a.value.total_cmp(&b.value));
         Self { items }
     }
 
