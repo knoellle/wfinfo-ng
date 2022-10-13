@@ -48,9 +48,6 @@ impl Database {
                     .parts
                     .iter()
                     .filter_map(|(name, ducat_item)| {
-                        let platinum = *price_table.get(name)?;
-                        let ducats = ducat_item.ducats;
-
                         let item_is_part = name.ends_with("Systems")
                             || name.ends_with("Neuroptics")
                             || name.ends_with("Chassis")
@@ -62,6 +59,17 @@ impl Database {
                             }
                             _ => name.to_owned(),
                         };
+                        let platinum = *match price_table
+                            .get(name)
+                            .or_else(|| price_table.get(&format!("{name} Blueprint")))
+                        {
+                            Some(plat) => plat,
+                            None => {
+                                println!("Failed to find price for item: {name}");
+                                return None;
+                            }
+                        };
+                        let ducats = ducat_item.ducats;
 
                         Some(Item {
                             name: name.to_string(),
@@ -126,7 +134,10 @@ impl Database {
         let items = item_names
             .into_iter()
             .map(|(name, chance)| statistics::Item {
-                value: self.find_item_exact(name).unwrap().platinum,
+                value: self
+                    .find_item_exact(name)
+                    .expect(&format!("Failed to find item {} in database", name))
+                    .platinum,
                 probability: chance,
             })
             .collect();
