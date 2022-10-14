@@ -159,7 +159,9 @@ mod test {
             println!("{:#?}", items);
             println!("{}", filename);
 
-            let item_names = items.iter().map(|item| item.map(|item| item.name.clone()));
+            let item_names = items
+                .iter()
+                .map(|item| item.map(|item| item.drop_name.clone()));
 
             for (result, expectation) in item_names.zip(label.items) {
                 if expectation.is_empty() {
