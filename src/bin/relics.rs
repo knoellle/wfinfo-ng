@@ -22,22 +22,34 @@ fn main() {
         .parse()
         .expect("Failed to parse relic count");
 
-    let mut sorted_relics: Vec<(String, f32)> = relics
+    let mut sorted_relics: Vec<(String, Refinement, f32)> = relics
         .iter()
         .map(|(name, item)| {
-            (
-                name.to_owned(),
-                database.shared_relic_value(&item, Refinement::Radiant, relic_count),
-            )
+            let (refinement, value) = [
+                Refinement::Intact,
+                Refinement::Exceptional,
+                Refinement::Flawless,
+                Refinement::Radiant,
+            ]
+            .into_iter()
+            .map(|refinement| {
+                (
+                    refinement,
+                    database.shared_relic_value(&item, refinement, relic_count),
+                )
+            })
+            .max_by(|a, b| a.1.total_cmp(&b.1))
+            .unwrap();
+            (name.to_owned(), refinement, value)
         })
         .collect();
-    sorted_relics.sort_by(|a, b| a.1.total_cmp(&b.1));
+    sorted_relics.sort_by(|a, b| a.2.total_cmp(&b.2));
 
     let list_length = 40;
     sorted_relics
         .iter()
         .take(list_length / 2)
-        .for_each(|(name, value)| println!("{}: {}", name, value));
+        .for_each(|(name, refinement, value)| println!("{}: {:?} {}", name, refinement, value));
     if sorted_relics.len() > list_length / 2 {
         println!("...");
         sorted_relics
@@ -45,6 +57,6 @@ fn main() {
             .rev()
             .take((list_length / 2).min(sorted_relics.len() - (list_length / 2)))
             .rev()
-            .for_each(|(name, value)| println!("{}: {}", name, value));
+            .for_each(|(name, refinement, value)| println!("{}: {:?} {}", name, refinement, value));
     }
 }
