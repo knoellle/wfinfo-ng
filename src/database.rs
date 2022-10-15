@@ -103,7 +103,7 @@ impl Database {
             .items
             .iter()
             .filter(|item| !item.name.ends_with("Set"))
-            .min_by_key(|item| levenshtein(&item.name, needle));
+            .min_by_key(|item| levenshtein(&item.drop_name, needle));
 
         best_match.and_then(|item| {
             if levenshtein(&item.drop_name.replace(" ", ""), needle)
