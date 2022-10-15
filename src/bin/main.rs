@@ -10,6 +10,84 @@ use notify::{watcher, RecursiveMode, Watcher};
 use wfinfo::database::Database;
 use wfinfo::ocr::{frame_to_image, image_to_strings, normalize_string};
 
+fn run_detection(capturer: &mut Capturer) {
+    let frame = capturer.capture_frame().unwrap();
+    println!("Captured");
+    let dimensions = capturer.geometry();
+    let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
+    println!("Converted");
+    let text = image_to_strings(image.clone(), None);
+    let text = text.iter().map(|s| normalize_string(s));
+    println!("{:#?}", text);
+    let db = Database::load_from_file(None, None);
+    let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
+    for item in items {
+        if let Some(item) = item {
+            println!("{}\n\t{}", item.drop_name, item.platinum);
+        } else {
+            println!("Unknown item\n\tUnknown");
+        }
+    }
+}
+
+fn main() {
+    let path = std::env::args().nth(1).unwrap();
+    println!("Path: {}", path);
+    let (tx, rx) = mpsc::channel();
+    let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
+    watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
+
+    let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
+    println!("Position: {}", position);
+
+    let mut capturer = Capturer::new(0).unwrap();
+    println!("Capture source resolution: {:?}", capturer.geometry());
+
+    loop {
+        match rx.recv() {
+            Ok(notify::DebouncedEvent::Write(_)) => {
+                let mut f = File::open(&path).unwrap();
+                f.seek(SeekFrom::Start(position)).unwrap();
+
+                let mut reward_screen_detected = false;
+
+                let reader = BufReader::new(f.by_ref());
+                for line in reader.lines() {
+                    let line = match line {
+                        Ok(line) => line,
+                        Err(err) => {
+                            println!("Error reading line: {}", err);
+                            continue;
+                        }
+                    };
+                    // println!("> {:?}", line);
+                    if line.contains("Pause countdown done")
+                        || line.contains("Got rewards")
+                        || line.contains("Created /Lotus/Interface/ProjectionRewardChoice.swf")
+                    {
+                        reward_screen_detected = true;
+                    }
+                }
+
+                if reward_screen_detected {
+                    println!("Detected, waiting...");
+                    sleep(Duration::from_millis(1500));
+                    println!("Capturing");
+                    run_detection(&mut capturer);
+                }
+
+                position = f.metadata().unwrap().len();
+                println!("Log position: {}", position);
+            }
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("Error: {:?}", err);
+                break;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::collections::BTreeMap;
@@ -159,84 +237,6 @@ mod test {
                 println!("{}", text);
             }
             println!("=================");
-        }
-    }
-}
-
-fn run_detection(capturer: &mut Capturer) {
-    let frame = capturer.capture_frame().unwrap();
-    println!("Captured");
-    let dimensions = capturer.geometry();
-    let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
-    println!("Converted");
-    let text = image_to_strings(image.clone(), None);
-    let text = text.iter().map(|s| normalize_string(s));
-    println!("{:#?}", text);
-    let db = Database::load_from_file(None, None);
-    let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
-    for item in items {
-        if let Some(item) = item {
-            println!("{}\n\t{}", item.drop_name, item.platinum);
-        } else {
-            println!("Unknown item\n\tUnknown");
-        }
-    }
-}
-
-fn main() {
-    let path = std::env::args().nth(1).unwrap();
-    println!("Path: {}", path);
-    let (tx, rx) = mpsc::channel();
-    let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
-    watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
-
-    let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
-    println!("Position: {}", position);
-
-    let mut capturer = Capturer::new(0).unwrap();
-    println!("Capture source resolution: {:?}", capturer.geometry());
-
-    loop {
-        match rx.recv() {
-            Ok(notify::DebouncedEvent::Write(_)) => {
-                let mut f = File::open(&path).unwrap();
-                f.seek(SeekFrom::Start(position)).unwrap();
-
-                let mut reward_screen_detected = false;
-
-                let reader = BufReader::new(f.by_ref());
-                for line in reader.lines() {
-                    let line = match line {
-                        Ok(line) => line,
-                        Err(err) => {
-                            println!("Error reading line: {}", err);
-                            continue;
-                        }
-                    };
-                    // println!("> {:?}", line);
-                    if line.contains("Pause countdown done")
-                        || line.contains("Got rewards")
-                        || line.contains("Created /Lotus/Interface/ProjectionRewardChoice.swf")
-                    {
-                        reward_screen_detected = true;
-                    }
-                }
-
-                if reward_screen_detected {
-                    println!("Detected, waiting...");
-                    sleep(Duration::from_millis(1500));
-                    println!("Capturing");
-                    run_detection(&mut capturer);
-                }
-
-                position = f.metadata().unwrap().len();
-                println!("Log position: {}", position);
-            }
-            Ok(_) => {}
-            Err(err) => {
-                eprintln!("Error: {:?}", err);
-                break;
-            }
         }
     }
 }
