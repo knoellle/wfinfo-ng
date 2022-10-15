@@ -184,7 +184,7 @@ impl Database {
         &self,
         relic: &Relic,
         refinement: Refinement,
-        number_of_relics: i32,
+        number_of_relics: u32,
     ) -> f32 {
         let bucket = self.relic_to_bucket(relic, refinement);
         bucket.expectation_of_best_of_n(number_of_relics)
@@ -194,7 +194,7 @@ impl Database {
         &self,
         relic: &Relic,
         refinement: Refinement,
-        _number_of_relics: i32,
+        _number_of_relics: u32,
     ) -> f32 {
         let common_chance = refinement.common_chance();
         let uncommon_chance = refinement.uncommon_chance();

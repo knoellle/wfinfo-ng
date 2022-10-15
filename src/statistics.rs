@@ -29,13 +29,13 @@ impl Bucket {
             .collect()
     }
 
-    pub fn expectation_of_best_of_n(&self, n: i32) -> f32 {
+    pub fn expectation_of_best_of_n(&self, n: u32) -> f32 {
         let cdf = self.cumulative();
 
         let mut total_expectation = 0.0;
         let mut previous_probability = 0.0;
         for item in cdf.iter() {
-            let cumulative_probability = item.probability.powi(n);
+            let cumulative_probability = item.probability.powi(n as i32);
             let just_this_probability = cumulative_probability - previous_probability;
             previous_probability = cumulative_probability;
             total_expectation += just_this_probability * item.value;
