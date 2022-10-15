@@ -1,12 +1,15 @@
 use std::{
     sync::mpsc::{
-        self, channel, Receiver, Sender,
+        channel, Receiver, Sender,
         TryRecvError::{Disconnected, Empty},
     },
     thread,
 };
 
-use eframe::{egui, epaint::ColorImage};
+use eframe::{
+    egui::{self, Key},
+    epaint::ColorImage,
+};
 use egui_extras::RetainedImage;
 use image::{io::Reader, DynamicImage, Rgb};
 use palette::{FromColor, Hsl, Srgb};
@@ -26,10 +29,11 @@ fn main() {
 }
 
 struct MyApp {
-    original_image: DynamicImage,
+    original_images: Vec<DynamicImage>,
+    selected_image_index: usize,
     image: Option<RetainedImage>,
 
-    ocr_request_sender: Sender<HslRange<f32>>,
+    ocr_request_sender: Sender<(usize, HslRange<f32>)>,
     ocr_response_receiver: Receiver<Vec<(String, String)>>,
     ocr_result: Option<Vec<(String, String)>>,
 
@@ -38,18 +42,19 @@ struct MyApp {
 
 impl Default for MyApp {
     fn default() -> Self {
-        let original_image = Reader::open(std::env::args().nth(1).unwrap())
-            .unwrap()
-            .decode()
-            .unwrap();
+        let original_images = std::env::args()
+            .skip(1)
+            .map(|name| Reader::open(name).unwrap().decode().unwrap())
+            .collect();
         let settings = HslRange {
             saturation: 0.50..1.0,
             lightness: 0.15..1.0,
             hue: -10.0..10.0,
         };
-        let (ocr_request_sender, ocr_response_receiver) = spawn_ocr_thread(&original_image);
+        let (ocr_request_sender, ocr_response_receiver) = spawn_ocr_thread(&original_images);
         Self {
-            original_image,
+            original_images,
+            selected_image_index: 0,
             image: None,
 
             ocr_request_sender,
@@ -62,23 +67,28 @@ impl Default for MyApp {
 }
 
 fn spawn_ocr_thread(
-    image: &DynamicImage,
-) -> (Sender<HslRange<f32>>, Receiver<Vec<(String, String)>>) {
+    images: &Vec<DynamicImage>,
+) -> (
+    Sender<(usize, HslRange<f32>)>,
+    Receiver<Vec<(String, String)>>,
+) {
     let (request_sender, request_receiver): (Sender<_>, Receiver<_>) = channel();
     let (response_sender, response_receiver) = channel();
-    let image = image.to_owned();
+    let images = images.to_owned();
 
     thread::spawn(move || loop {
         let database = Database::load_from_file(None, None);
         loop {
-            let mut last_request: HslRange<f32> = request_receiver.recv().unwrap();
+            let (mut index, mut last_request): (usize, HslRange<f32>) =
+                request_receiver.recv().unwrap();
             loop {
                 match request_receiver.try_recv() {
-                    Ok(request) => last_request = request,
+                    Ok(request) => (index, last_request) = request,
                     Err(Empty) => break,
                     Err(Disconnected) => return,
                 }
             }
+            let image = &images[index];
             let strings = ocr::image_to_strings(
                 image.clone(),
                 Some(Theme::Custom(last_request.to_ordered())),
@@ -89,7 +99,7 @@ fn spawn_ocr_thread(
                     let item = database.find_item(&normalize_string(string), None);
                     (
                         string.to_owned(),
-                        item.map(|item| item.name.to_owned())
+                        item.map(|item| item.drop_name.to_owned())
                             .unwrap_or("None".to_string()),
                     )
                 })
@@ -103,10 +113,31 @@ fn spawn_ocr_thread(
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint();
+        if ctx.input_mut().consume_key(egui::Modifiers::NONE, Key::N) {
+            self.selected_image_index =
+                (self.selected_image_index + 1) % self.original_images.len();
+            self.image = None;
+            self.ocr_request_sender
+                .send((self.selected_image_index, self.settings.clone()))
+                .unwrap();
+            self.ocr_result = None;
+        }
+        if ctx.input_mut().consume_key(egui::Modifiers::NONE, Key::P) {
+            self.selected_image_index =
+                (self.selected_image_index - 1) % self.original_images.len();
+            self.image = None;
+            self.ocr_request_sender
+                .send((self.selected_image_index, self.settings.clone()))
+                .unwrap();
+            self.ocr_result = None;
+        }
         if self.image.is_none() {
-            let image = self.process_image(&self.original_image);
+            let image = self.process_image(&self.original_images[self.selected_image_index]);
             self.image = Some(convert_image(&image));
-            self.ocr_request_sender.send(self.settings.clone()).unwrap();
+            self.ocr_request_sender
+                .send((self.selected_image_index, self.settings.clone()))
+                .unwrap();
         }
 
         match self.ocr_response_receiver.try_recv() {
@@ -169,7 +200,9 @@ impl eframe::App for MyApp {
                     .changed()
             {
                 self.image = None;
-                self.ocr_request_sender.send(self.settings.clone()).unwrap();
+                self.ocr_request_sender
+                    .send((self.selected_image_index, self.settings.clone()))
+                    .unwrap();
                 self.ocr_result = None;
             };
         });
