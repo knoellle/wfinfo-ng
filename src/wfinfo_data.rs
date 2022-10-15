@@ -105,7 +105,7 @@ pub mod item_data {
         pub fn rare_chance(&self) -> f32 {
             match self {
                 Refinement::Intact => 0.02,
-                Refinement::Exceptional => 0.4,
+                Refinement::Exceptional => 0.04,
                 Refinement::Flawless => 0.06,
                 Refinement::Radiant => 0.1,
             }
