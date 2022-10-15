@@ -49,7 +49,7 @@ fn main() {
     sorted_relics
         .iter()
         .take(list_length / 2)
-        .for_each(|(name, refinement, value)| println!("{}: {:?} {}", name, refinement, value));
+        .for_each(|(name, refinement, value)| println!("{}:\t{:?}\t{}", name, refinement, value));
     if sorted_relics.len() > list_length / 2 {
         println!("...");
         sorted_relics
@@ -57,6 +57,8 @@ fn main() {
             .rev()
             .take((list_length / 2).min(sorted_relics.len() - (list_length / 2)))
             .rev()
-            .for_each(|(name, refinement, value)| println!("{}: {:?} {}", name, refinement, value));
+            .for_each(|(name, refinement, value)| {
+                println!("{}:\t{:?}\t{}", name, refinement, value)
+            });
     }
 }
