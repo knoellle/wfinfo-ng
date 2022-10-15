@@ -54,7 +54,9 @@ impl Database {
                             || name.ends_with("Harness")
                             || name.ends_with("Wings");
                         let drop_name = match equipment_item.item_type {
-                            EquipmentType::Warframes | EquipmentType::Archwing if item_is_part => {
+                            EquipmentType::Warframes | EquipmentType::Archwing
+                                if item_is_part && !name.ends_with("Blueprint") =>
+                            {
                                 name.to_owned() + " Blueprint"
                             }
                             _ => name.to_owned(),
@@ -104,8 +106,8 @@ impl Database {
             .min_by_key(|item| levenshtein(&item.name, needle));
 
         best_match.and_then(|item| {
-            if levenshtein(&item.name.replace(" ", ""), needle)
-                <= threshold.unwrap_or(item.name.len() / 3)
+            if levenshtein(&item.drop_name.replace(" ", ""), needle)
+                <= threshold.unwrap_or(item.drop_name.len() / 3)
             {
                 Some(item)
             } else {
@@ -273,7 +275,7 @@ mod test {
         let item = db
             .find_item("Oclavia Prime Syslems\nBlueprint\n", None)
             .expect("Failed to fuzzy find Octavia Prime Blueprint in database");
-        assert_eq!(item.name, "Octavia Prime Systems Blueprint");
+        assert_eq!(item.name, "Octavia Prime Systems");
     }
 
     #[test]
