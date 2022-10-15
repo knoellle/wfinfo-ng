@@ -2672,6 +2672,7 @@ dependencies = [
  "notify",
  "ordered-float",
  "palette",
+ "rayon",
  "serde",
  "serde-aux",
  "serde_json",
