@@ -125,7 +125,7 @@ mod test {
             .sum();
 
         let success_rate = success_count as f32 / total as f32;
-        assert!(success_rate > 1.99, "Success rate: {success_rate}");
+        assert!(success_rate > 0.95, "Success rate: {success_rate}");
     }
 
     // #[test]

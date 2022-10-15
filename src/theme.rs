@@ -108,9 +108,9 @@ impl Theme {
         match self {
             Theme::Equinox => test.saturation <= 0.2 && test.lightness >= 0.55,
             Theme::Stalker => {
-                (0.50..0.67).contains(&test.saturation)
-                    && (0.15..0.40).contains(&test.lightness)
-                    && (-10.0..2.0).contains(&test.hue.to_degrees())
+                (0.61..1.00).contains(&test.saturation)
+                    && (0.25..0.65).contains(&test.lightness)
+                    && (-10.0..5.0).contains(&test.hue.to_degrees())
             }
             Theme::HighContrast => {
                 test.saturation >= 0.60
