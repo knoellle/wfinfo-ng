@@ -16,7 +16,7 @@ fn run_detection(capturer: &mut Capturer) {
     let dimensions = capturer.geometry();
     let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
     println!("Converted");
-    let text = image_to_strings(image.clone(), None);
+    let text = image_to_strings(image, None);
     let text = text.iter().map(|s| normalize_string(s));
     println!("{:#?}", text);
     let db = Database::load_from_file(None, None);
@@ -135,6 +135,7 @@ mod test {
     }
 
     // #[test]
+    #[allow(dead_code)]
     fn wfi_images_exact() {
         let labels: IndexMap<String, Label> =
             serde_json::from_str(&read_to_string("WFI test images/labels.json").unwrap()).unwrap();
@@ -148,7 +149,7 @@ mod test {
             println!("{:#?}", text);
 
             let db = Database::load_from_file(None, None);
-            let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
+            let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
             println!("{:#?}", items);
             println!("{}", filename);
 
@@ -183,7 +184,7 @@ mod test {
                 println!("{:#?}", text);
 
                 let db = Database::load_from_file(None, None);
-                let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
+                let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
                 println!("{:#?}", items);
                 println!("{}", filename);
 
@@ -191,10 +192,9 @@ mod test {
                     .iter()
                     .map(|item| item.map(|item| item.drop_name.clone()));
 
-                if item_names
-                    .zip(label.items)
-                    .all(|(result, expectation)| expectation == result.unwrap_or("".to_string()))
-                {
+                if item_names.zip(label.items).all(|(result, expectation)| {
+                    expectation == result.unwrap_or_else(|| "".to_string())
+                }) {
                     1
                 } else {
                     0
@@ -207,6 +207,7 @@ mod test {
     }
 
     // #[test]
+    #[allow(dead_code)]
     fn images() {
         let tests = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
         for i in tests {

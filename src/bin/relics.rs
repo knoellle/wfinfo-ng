@@ -18,7 +18,7 @@ fn main() {
 
     let relic_count: u32 = args
         .next()
-        .unwrap_or("4".to_string())
+        .unwrap_or_else(|| "4".to_string())
         .parse()
         .expect("Failed to parse relic count");
 
@@ -35,7 +35,7 @@ fn main() {
             .map(|refinement| {
                 (
                     refinement,
-                    database.shared_relic_value(&item, refinement, relic_count),
+                    database.shared_relic_value(item, refinement, relic_count),
                 )
             })
             .max_by(|a, b| a.1.total_cmp(&b.1))

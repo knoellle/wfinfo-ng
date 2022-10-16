@@ -22,7 +22,7 @@ fn main() {
         println!("{:#?}", text);
 
         let db = Database::load_from_file(None, None);
-        let items: Vec<_> = text.iter().map(|s| db.find_item(&s, None)).collect();
+        let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
         for item in items.iter() {
             if let Some(item) = item {
                 println!("{}: {}\n", item.name, item.platinum);

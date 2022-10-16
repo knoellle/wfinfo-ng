@@ -106,7 +106,7 @@ impl Database {
             .min_by_key(|item| levenshtein(&item.drop_name, needle));
 
         best_match.and_then(|item| {
-            if levenshtein(&item.drop_name.replace(" ", ""), needle)
+            if levenshtein(&item.drop_name.replace(' ', ""), needle)
                 <= threshold.unwrap_or(item.drop_name.len() / 3)
             {
                 Some(item)
@@ -138,7 +138,7 @@ impl Database {
             .map(|(name, chance)| statistics::Item {
                 value: self
                     .find_item_exact(name)
-                    .expect(&format!("Failed to find item {} in database", name))
+                    .unwrap_or_else(|| panic!("Failed to find item {} in database", name))
                     .platinum,
                 probability: chance,
             })
@@ -177,7 +177,7 @@ impl Database {
             .sum();
         println!("{value} vs {value2}");
 
-        return value;
+        value
     }
 
     pub fn shared_relic_value(

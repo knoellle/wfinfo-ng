@@ -66,6 +66,7 @@ impl Default for MyApp {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn spawn_ocr_thread(
     images: &Vec<DynamicImage>,
 ) -> (
@@ -100,7 +101,7 @@ fn spawn_ocr_thread(
                     (
                         string.to_owned(),
                         item.map(|item| item.drop_name.to_owned())
-                            .unwrap_or("None".to_string()),
+                            .unwrap_or_else(|| "None".to_string()),
                     )
                 })
                 .collect();
