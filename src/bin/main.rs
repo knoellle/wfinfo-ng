@@ -21,9 +21,26 @@ fn run_detection(capturer: &mut Capturer) {
     println!("{:#?}", text);
     let db = Database::load_from_file(None, None);
     let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
-    for item in items {
+
+    let best = items
+        .iter()
+        .map(|item| {
+            item.map(|item| item.platinum.max(item.ducats as f32 / 10.0))
+                .unwrap_or(0.0)
+        })
+        .enumerate()
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|best| best.0);
+
+    for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
-            println!("{}\n\t{}", item.drop_name, item.platinum);
+            println!(
+                "{}\n\t{}\t{}\t{}",
+                item.drop_name,
+                item.platinum,
+                item.ducats as f32 / 10.0,
+                if Some(index) == best { "<----" } else { "" }
+            );
         } else {
             println!("Unknown item\n\tUnknown");
         }
