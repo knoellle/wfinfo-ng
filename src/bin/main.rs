@@ -63,6 +63,8 @@ fn main() {
     let mut capturer = Capturer::new(0).unwrap();
     println!("Capture source resolution: {:?}", capturer.geometry());
 
+    run_detection(&mut capturer);
+
     loop {
         match rx.recv() {
             Ok(notify::DebouncedEvent::Write(_)) => {
