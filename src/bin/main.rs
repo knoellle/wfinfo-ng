@@ -25,8 +25,11 @@ fn run_detection(capturer: &mut Capturer) {
     let best = items
         .iter()
         .map(|item| {
-            item.map(|item| item.platinum.max(item.ducats as f32 / 10.0))
-                .unwrap_or(0.0)
+            item.map(|item| {
+                item.platinum
+                    .max(item.ducats as f32 / 10.0 + item.platinum / 100.0)
+            })
+            .unwrap_or(0.0)
         })
         .enumerate()
         .max_by(|a, b| a.1.total_cmp(&b.1))
