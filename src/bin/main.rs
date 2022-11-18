@@ -1,20 +1,29 @@
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
+use std::{fs::File, process::Command};
+use std::{
+    io::{BufRead, BufReader, Read, Seek, SeekFrom},
+    process::Stdio,
+};
 
-use captrs::Capturer;
-use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
 use wfinfo::database::Database;
-use wfinfo::ocr::{frame_to_image, image_to_strings, normalize_string};
+use wfinfo::ocr::{image_to_strings, normalize_string};
 
-fn run_detection(capturer: &mut Capturer) {
-    let frame = capturer.capture_frame().unwrap();
+fn run_detection() -> anyhow::Result<()> {
+    // let frame = capturer.capture_frame().unwrap();
+    Command::new("bash")
+        .arg("./screenshot.sh")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .stdin(Stdio::inherit())
+        .output()?;
+    let image = image::io::Reader::open("input.png")?.decode()?;
     println!("Captured");
-    let dimensions = capturer.geometry();
-    let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
+    // let dimensions = capturer.geometry();
+    // let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
+
     println!("Converted");
     let text = image_to_strings(image, None);
     let text = text.iter().map(|s| normalize_string(s));
@@ -48,6 +57,8 @@ fn run_detection(capturer: &mut Capturer) {
             println!("Unknown item\n\tUnknown");
         }
     }
+
+    Ok(())
 }
 
 fn main() {
@@ -62,10 +73,9 @@ fn main() {
     let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
     println!("Position: {}", position);
 
-    let mut capturer = Capturer::new(0).unwrap();
-    println!("Capture source resolution: {:?}", capturer.geometry());
-
-    run_detection(&mut capturer);
+    if let Err(error) = run_detection() {
+        eprintln!("{:?}", error)
+    };
 
     loop {
         match rx.recv() {
@@ -97,7 +107,9 @@ fn main() {
                     println!("Detected, waiting...");
                     sleep(Duration::from_millis(1500));
                     println!("Capturing");
-                    run_detection(&mut capturer);
+                    if let Err(error) = run_detection() {
+                        eprintln!("{:?}", error)
+                    };
                 }
 
                 position = f.metadata().unwrap().len();
