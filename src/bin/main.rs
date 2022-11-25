@@ -55,7 +55,9 @@ fn main() {
     println!("Path: {}", path);
     let (tx, rx) = mpsc::channel();
     let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
-    watcher.watch(&path, RecursiveMode::NonRecursive).unwrap();
+    watcher
+        .watch(&path, RecursiveMode::NonRecursive)
+        .unwrap_or_else(|_| panic!("Failed to open EE.log file: {path}"));
 
     let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
     println!("Position: {}", position);
