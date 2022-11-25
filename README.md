@@ -1,5 +1,20 @@
 # WFinfo-ng
 
+A Linux compatible version of the great [WFinfo](https://github.com/WFCD/WFinfo/).
+
+Does support:
+
+- Detecting relic reward screens
+- Taking a screenshot the game
+- Detecting items
+- Displaying platinum values for each item
+
+Doesn't support:
+
+- Market integration
+- Inventory tracking
+- Interactive "snap-it" features
+
 # Prerequisites
 
 - `rust` rustc >= 1.64 & cargo. I recommend installation via [rustup](https://rustup.rs).
