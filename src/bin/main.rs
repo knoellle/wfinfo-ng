@@ -5,20 +5,19 @@ use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
 
-use xcap::Window;
-
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
+use xcap::Window;
 
 use wfinfo::database::Database;
-use wfinfo::ocr::{image_to_strings, normalize_string};
+use wfinfo::ocr::{normalize_string, reward_image_to_reward_names};
 
 fn run_detection(capturer: &Window, db: &Database) {
     let frame = capturer.capture_image().unwrap();
     println!("Captured");
     let image = DynamicImage::ImageRgba8(frame);
     println!("Converted");
-    let text = image_to_strings(image, None);
+    let text = reward_image_to_reward_names(image, None);
     let text = text.iter().map(|s| normalize_string(s));
     println!("{:#?}", text);
 
@@ -144,7 +143,7 @@ mod test {
             .unwrap()
             .decode()
             .unwrap();
-        let text = image_to_strings(image, None);
+        let text = reward_image_to_reward_names(image, None);
         let text = text.iter().map(|s| normalize_string(s));
         println!("{:#?}", text);
         let db = Database::load_from_file(None, None);
@@ -179,7 +178,7 @@ mod test {
                 .unwrap()
                 .decode()
                 .unwrap();
-            let text = image_to_strings(image, None);
+            let text = reward_image_to_reward_names(image, None);
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
             println!("{:#?}", text);
 
@@ -214,7 +213,7 @@ mod test {
                     .unwrap()
                     .decode()
                     .unwrap();
-                let text = image_to_strings(image, None);
+                let text = reward_image_to_reward_names(image, None);
                 let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
                 println!("{:#?}", text);
 
