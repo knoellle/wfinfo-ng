@@ -4,7 +4,7 @@ use image::io::Reader;
 use indexmap::IndexMap;
 use wfinfo::{
     database::Database,
-    ocr::{detect_theme, image_to_strings, normalize_string},
+    ocr::{detect_theme, reward_image_to_reward_names, normalize_string},
     testing::Label,
 };
 
@@ -15,7 +15,7 @@ fn main() {
         let filepath = PathBuf::from(argument);
         let image = Reader::open(&filepath).unwrap().decode().unwrap();
 
-        let detections = image_to_strings(image.clone(), None);
+        let detections = reward_image_to_reward_names(image.clone(), None);
         println!("{:#?}", detections);
 
         let text: Vec<_> = detections.iter().map(|s| normalize_string(s)).collect();

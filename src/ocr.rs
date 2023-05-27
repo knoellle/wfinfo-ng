@@ -335,29 +335,27 @@ pub fn normalize_string(string: &str) -> String {
     string.replace(|c: char| !c.is_ascii_alphabetic(), "")
 }
 
-pub fn image_to_strings(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
+pub fn image_to_strings(image: &DynamicImage) -> String {
+    let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
+    let buffer = image.as_flat_samples_u8().unwrap();
+    ocr = ocr
+        .set_frame(
+            buffer.samples,
+            image.width() as i32,
+            image.height() as i32,
+            3,
+            3 * image.width() as i32,
+        )
+        .expect("Failed to set image");
+    let text = ocr.get_text().expect("Failed to get text");
+    println!("{}", text);
+    text
+}
+
+pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
     let theme = theme.unwrap_or_else(|| detect_theme(&image));
     let parts = extract_parts(&image, theme);
     println!("Extracted part images");
 
-    parts
-        .iter()
-        .map(|part| {
-            let mut ocr =
-                Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
-            let buffer = part.as_flat_samples_u8().unwrap();
-            ocr = ocr
-                .set_frame(
-                    buffer.samples,
-                    part.width() as i32,
-                    part.height() as i32,
-                    3,
-                    3 * part.width() as i32,
-                )
-                .expect("Failed to set image");
-            let text = ocr.get_text().expect("Failed to get text");
-            println!("{}", text);
-            text
-        })
-        .collect()
+    parts.iter().map(image_to_strings).collect()
 }

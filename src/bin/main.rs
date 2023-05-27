@@ -8,7 +8,7 @@ use captrs::Capturer;
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
 use wfinfo::database::Database;
-use wfinfo::ocr::{frame_to_image, image_to_strings, normalize_string};
+use wfinfo::ocr::{frame_to_image, normalize_string, reward_image_to_reward_names};
 
 fn run_detection(capturer: &mut Capturer) {
     let frame = capturer.capture_frame().unwrap();
@@ -16,7 +16,7 @@ fn run_detection(capturer: &mut Capturer) {
     let dimensions = capturer.geometry();
     let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
     println!("Converted");
-    let text = image_to_strings(image, None);
+    let text = reward_image_to_reward_names(image, None);
     let text = text.iter().map(|s| normalize_string(s));
     println!("{:#?}", text);
     let db = Database::load_from_file(None, None);
@@ -133,7 +133,7 @@ mod test {
             .unwrap()
             .decode()
             .unwrap();
-        let text = image_to_strings(image, None);
+        let text = reward_image_to_reward_names(image, None);
         let text = text.iter().map(|s| normalize_string(s));
         println!("{:#?}", text);
         let db = Database::load_from_file(None, None);
@@ -168,7 +168,7 @@ mod test {
                 .unwrap()
                 .decode()
                 .unwrap();
-            let text = image_to_strings(image, None);
+            let text = reward_image_to_reward_names(image, None);
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
             println!("{:#?}", text);
 
@@ -203,7 +203,7 @@ mod test {
                     .unwrap()
                     .decode()
                     .unwrap();
-                let text = image_to_strings(image, None);
+                let text = reward_image_to_reward_names(image, None);
                 let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
                 println!("{:#?}", text);
 
