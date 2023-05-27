@@ -40,7 +40,7 @@ impl Database {
                 .unwrap();
         let filtered_items: FilteredItems = serde_json::from_str(&text).unwrap();
 
-        let items = filtered_items
+        let mut items: Vec<_> = filtered_items
             .eqmt
             .iter()
             .flat_map(|(_name, equipment_item)| {
@@ -93,6 +93,11 @@ impl Database {
                     }),
             )
             .collect();
+
+        if let Some(item) = items.iter_mut().find(|item| item.name == "Forma Blueprint") {
+            item.platinum = 35.0 / 3.0;
+        };
+
         let relics = filtered_items.relics;
 
         Database { items, relics }
