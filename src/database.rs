@@ -2,6 +2,7 @@ use std::{collections::HashMap, fs::read_to_string, path::Path};
 
 use levenshtein::levenshtein;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::{
     statistics::{self, Bucket},
@@ -38,7 +39,11 @@ impl Database {
         let text =
             read_to_string(filtered_items.unwrap_or_else(|| Path::new("filtered_items.json")))
                 .unwrap();
-        let filtered_items: FilteredItems = serde_json::from_str(&text).unwrap();
+        let mut json = serde_json::from_str(&text).unwrap();
+
+        remove_empty_relics_from_json(&mut json);
+
+        let filtered_items: FilteredItems = serde_json::from_value(json).unwrap();
 
         let mut items: Vec<_> = filtered_items
             .eqmt
@@ -234,6 +239,15 @@ impl Database {
         }
 
         value
+    }
+}
+
+fn remove_empty_relics_from_json(value: &mut Value) {
+    let relics = &mut value["relics"];
+    for (_, kind) in relics.as_object_mut().unwrap() {
+        kind.as_object_mut()
+            .unwrap()
+            .retain(|_name, relic| serde_json::from_value::<Relic>(relic.clone()).is_ok());
     }
 }
 
