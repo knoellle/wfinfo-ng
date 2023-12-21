@@ -1,25 +1,25 @@
+use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
 
-use captrs::Capturer;
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
+use screenshots::Screen;
 use wfinfo::database::Database;
-use wfinfo::ocr::{frame_to_image, image_to_strings, normalize_string};
+use wfinfo::ocr::{image_to_strings, normalize_string};
 
-fn run_detection(capturer: &mut Capturer) {
-    let frame = capturer.capture_frame().unwrap();
+fn run_detection(capturer: &Screen, db: &Database) {
+    let frame = capturer.capture().unwrap();
     println!("Captured");
-    let dimensions = capturer.geometry();
-    let image = DynamicImage::ImageRgb8(frame_to_image(dimensions, &frame));
+    let image = DynamicImage::ImageRgba8(frame);
     println!("Converted");
     let text = image_to_strings(image, None);
     let text = text.iter().map(|s| normalize_string(s));
     println!("{:#?}", text);
-    let db = Database::load_from_file(None, None);
+
     let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
 
     let best = items
@@ -50,7 +50,7 @@ fn run_detection(capturer: &mut Capturer) {
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let path = std::env::args().nth(1).unwrap();
     println!("Path: {}", path);
     let (tx, rx) = mpsc::channel();
@@ -62,11 +62,20 @@ fn main() {
     let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
     println!("Position: {}", position);
 
-    let mut capturer = Capturer::new(0).unwrap();
-    println!("Capture source resolution: {:?}", capturer.geometry());
+    let screens = Screen::all()?;
+    let primary = screens
+        .iter()
+        .filter(|x| x.display_info.is_primary)
+        .nth(0)
+        .unwrap();
+    println!(
+        "Capture source resolution: {:?}x{:?}",
+        primary.display_info.width, primary.display_info.height
+    );
+    let db = Database::load_from_file(None, None);
+    println!("Loaded database");
 
-    run_detection(&mut capturer);
-
+    run_detection(&primary, &db);
     loop {
         match rx.recv() {
             Ok(notify::DebouncedEvent::Write(_)) => {
@@ -97,7 +106,7 @@ fn main() {
                     println!("Detected, waiting...");
                     sleep(Duration::from_millis(1500));
                     println!("Capturing");
-                    run_detection(&mut capturer);
+                    run_detection(&primary, &db);
                 }
 
                 position = f.metadata().unwrap().len();
@@ -106,7 +115,6 @@ fn main() {
             Ok(_) => {}
             Err(err) => {
                 eprintln!("Error: {:?}", err);
-                break;
             }
         }
     }
