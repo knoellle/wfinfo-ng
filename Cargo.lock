@@ -193,16 +193,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "captrs"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dad312f1be0ea3cce9ad0cdbace33350ea0781f138d7b49bfe191df0aa83db1b"
-dependencies = [
- "dxgcap",
- "x11cap",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -578,16 +568,6 @@ dependencies = [
  "libc",
  "serde",
  "serde_derive",
- "winapi 0.3.9",
- "wio",
-]
-
-[[package]]
-name = "dxgcap"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18a3f3df51c509e7c8d2807c63abfecdea1a83def81baec83d68c6f5bb8ac654"
-dependencies = [
  "winapi 0.3.9",
  "wio",
 ]
@@ -2855,7 +2835,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "approx",
- "captrs",
  "eframe",
  "egui_extras",
  "image",
@@ -3212,16 +3191,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "x11"
-version = "2.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "502da5464ccd04011667b11c435cb992822c2c0dbde1770c988480d312a0db2e"
-dependencies = [
- "libc",
- "pkg-config",
-]
-
-[[package]]
 name = "x11-dl"
 version = "2.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3230,16 +3199,6 @@ dependencies = [
  "libc",
  "once_cell",
  "pkg-config",
-]
-
-[[package]]
-name = "x11cap"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16ccedf556cb1f784d462dd8f24a7804f766d57c0051439d3e4052465263c399"
-dependencies = [
- "libc",
- "x11",
 ]
 
 [[package]]

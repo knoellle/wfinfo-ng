@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::f32::consts::PI;
 use tesseract::Tesseract;
 
-use captrs::Bgr8;
-use image::{DynamicImage, GenericImageView, Pixel, Rgb, RgbImage};
+use image::{DynamicImage, GenericImageView, Pixel, Rgb};
 
 use crate::theme::Theme;
 
@@ -321,14 +320,6 @@ pub fn filter_and_separate_parts_from_part_box(
     }
 
     images
-}
-
-pub fn frame_to_image(dimensions: (u32, u32), frame: &[Bgr8]) -> RgbImage {
-    let container = frame
-        .iter()
-        .flat_map(|bgr8| [bgr8.r, bgr8.g, bgr8.b])
-        .collect();
-    RgbImage::from_raw(dimensions.0, dimensions.1, container).unwrap()
 }
 
 pub fn normalize_string(string: &str) -> String {
