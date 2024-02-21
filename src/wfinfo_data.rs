@@ -52,8 +52,21 @@ pub mod item_data {
         Radiant,
     }
 
+    #[derive(Copy, Clone, Debug, Deserialize, Default)]
+    pub enum Era {
+        #[default]
+        Lith,
+        Neo,
+        Meso,
+        Axi,
+    }
+
     #[derive(Clone, Debug, Deserialize)]
     pub struct Relic {
+        #[serde(default)]
+        pub era: Era,
+        #[serde(default)]
+        pub name: String,
         pub vaulted: bool,
         pub rare1: String,
         pub uncommon1: String,
@@ -73,6 +86,17 @@ pub mod item_data {
         pub meso: HashMap<String, Relic>,
         #[serde(rename = "Axi")]
         pub axi: HashMap<String, Relic>,
+    }
+
+    impl Relics {
+        pub fn iter(&self) -> Box<impl Iterator<Item = (Era, String, Relic)> + '_> {
+            let iter = self
+                .lith
+                .iter()
+                .map(|(name, relic)| (Era::Lith, name.clone(), relic.clone()));
+
+            Box::new(iter)
+        }
     }
 
     #[derive(Clone, Debug, Deserialize)]

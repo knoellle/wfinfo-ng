@@ -332,7 +332,7 @@ pub fn frame_to_image(dimensions: (u32, u32), frame: &[Bgr8]) -> RgbImage {
 }
 
 pub fn normalize_string(string: &str) -> String {
-    string.replace(|c: char| !c.is_ascii_alphabetic(), "")
+    string.replace(|c: char| !c.is_ascii_alphanumeric(), "")
 }
 
 pub fn image_to_strings(image: &DynamicImage) -> String {

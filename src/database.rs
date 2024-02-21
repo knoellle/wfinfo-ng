@@ -130,6 +130,27 @@ impl Database {
         self.items.iter().find(|item| item.name == needle)
     }
 
+    pub fn find_relic(&self, needle: &str, threshold: Option<usize>) -> Option<Relic> {
+        let best_match = self
+            .relics
+            .iter()
+            .min_by_key(|(era, name, _relic)| levenshtein(&format!("{era:?} {name}"), needle));
+
+        best_match.and_then(|(era, name, relic)| {
+            if levenshtein(&format!("{era:?} {name}"), needle)
+                <= threshold.unwrap_or(relic.name.len() / 3)
+            {
+                Some(relic)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_relic_exact(&self, needle: &str) -> Option<&Item> {
+        self.items.iter().find(|item| item.name == needle)
+    }
+
     fn relic_to_bucket(&self, relic: &Relic, refinement: Refinement) -> Bucket {
         let common_chance = refinement.common_chance();
         let uncommon_chance = refinement.uncommon_chance();
