@@ -86,17 +86,12 @@ impl Database {
                         })
                     })
             })
-            .chain(
-                filtered_items
-                    .ignored_items
-                    .iter()
-                    .map(|(name, _item)| Item {
-                        name: name.to_owned(),
-                        drop_name: name.to_owned(),
-                        platinum: 0.0,
-                        ducats: 0,
-                    }),
-            )
+            .chain(filtered_items.ignored_items.keys().map(|name| Item {
+                name: name.to_owned(),
+                drop_name: name.to_owned(),
+                platinum: 0.0,
+                ducats: 0,
+            }))
             .collect();
 
         if let Some(item) = items.iter_mut().find(|item| item.name == "Forma Blueprint") {
