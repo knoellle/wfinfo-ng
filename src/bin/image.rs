@@ -4,7 +4,7 @@ use image::io::Reader;
 use indexmap::IndexMap;
 use wfinfo::{
     database::Database,
-    ocr::{detect_theme, reward_image_to_reward_names, normalize_string},
+    ocr::{detect_theme, normalize_string, reward_image_to_reward_names},
     testing::Label,
 };
 
