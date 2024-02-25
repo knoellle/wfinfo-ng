@@ -4,7 +4,8 @@ use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
-use xcap::Monitor;
+
+use xcap::Window;
 
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
@@ -12,7 +13,7 @@ use notify::{watcher, RecursiveMode, Watcher};
 use wfinfo::database::Database;
 use wfinfo::ocr::{image_to_strings, normalize_string};
 
-fn run_detection(capturer: &Monitor, db: &Database) {
+fn run_detection(capturer: &Window, db: &Database) {
     let frame = capturer.capture_image().unwrap();
     println!("Captured");
     let image = DynamicImage::ImageRgba8(frame);
@@ -63,18 +64,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
     println!("Position: {}", position);
 
-    let screens = Monitor::all()?;
-    let primary = screens.iter().find(|x| x.is_primary()).unwrap();
+    let windows = Window::all()?;
+    let Some(warframe_window) = windows.iter().find(|x| x.title() == "Warframe") else {
+        return Err("Warframe window not found".into());
+    };
 
     println!(
         "Capture source resolution: {:?}x{:?}",
-        primary.width(), primary.height()
+        warframe_window.width(),
+        warframe_window.height()
     );
 
     let db = Database::load_from_file(None, None);
     println!("Loaded database");
 
-    run_detection(&primary, &db);
+    run_detection(&warframe_window, &db);
     loop {
         match rx.recv() {
             Ok(notify::DebouncedEvent::Write(_)) => {
@@ -105,7 +109,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     println!("Detected, waiting...");
                     sleep(Duration::from_millis(1500));
                     println!("Capturing");
-                    run_detection(&primary, &db);
+                    run_detection(&warframe_window, &db);
                 }
 
                 position = f.metadata().unwrap().len();
