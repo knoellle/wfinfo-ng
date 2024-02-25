@@ -4,15 +4,16 @@ use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
+use xcap::Monitor;
 
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
-use screenshots::Screen;
+
 use wfinfo::database::Database;
 use wfinfo::ocr::{image_to_strings, normalize_string};
 
-fn run_detection(capturer: &Screen, db: &Database) {
-    let frame = capturer.capture().unwrap();
+fn run_detection(capturer: &Monitor, db: &Database) {
+    let frame = capturer.capture_image().unwrap();
     println!("Captured");
     let image = DynamicImage::ImageRgba8(frame);
     println!("Converted");
@@ -62,16 +63,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
     println!("Position: {}", position);
 
-    let screens = Screen::all()?;
-    let primary = screens
-        .iter()
-        .filter(|x| x.display_info.is_primary)
-        .nth(0)
-        .unwrap();
+    let screens = Monitor::all()?;
+    let primary = screens.iter().find(|x| x.is_primary()).unwrap();
+
     println!(
         "Capture source resolution: {:?}x{:?}",
-        primary.display_info.width, primary.display_info.height
+        primary.width(), primary.height()
     );
+
     let db = Database::load_from_file(None, None);
     println!("Loaded database");
 
