@@ -27,9 +27,9 @@ fn relic_values(database: &Database, relics: &HashMap<String, Relic>, relic_coun
             (name.to_owned(), refinement, value)
         })
         .collect();
-    sorted_relics.sort_by(|a, b| a.2.total_cmp(&b.2));
+    sorted_relics.sort_by(|a, b| b.2.total_cmp(&a.2));
 
-    let list_length = 40;
+    let list_length = 800;
     sorted_relics
         .iter()
         .take(list_length / 2)
@@ -65,13 +65,9 @@ fn best_trace_dump(database: &Database) {
     let mut sorted_relics = relics;
     sorted_relics.sort_by(|a, b| a.1.total_cmp(&b.1));
 
-    let list_length = 40;
     println!("...");
     sorted_relics
         .iter()
-        .rev()
-        .take(list_length)
-        .rev()
         .for_each(|(name, value)| println!("{}:  \t{}", name, value));
 }
 

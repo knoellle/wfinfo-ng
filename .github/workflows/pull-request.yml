@@ -1,0 +1,22 @@
+name: Rust
+on:
+  pull_request:
+jobs:
+  check:
+    name: Clippy
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+      - name: Check
+        run: |
+          cargo clippy --workspace --all-featurese
+  format:
+    name: Format
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+      - name: Check
+        run: |
+          cargo fmt --check

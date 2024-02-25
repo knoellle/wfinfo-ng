@@ -60,7 +60,7 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
     } else {
         image.width() as f32 / 1920.0
     };
-    let line_height = (PIXEL_REWARD_LINE_HEIGHT as f32 / 2.0 * screen_scaling) as usize;
+    let line_height = (PIXEL_REWARD_LINE_HEIGHT / 2.0 * screen_scaling) as usize;
 
     let width = image.width() as f32;
     let height = image.height() as f32;
@@ -71,8 +71,8 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
     let most_top = height / 2.0
         - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT + PIXEL_REWARD_LINE_HEIGHT)
             * screen_scaling);
-    let most_bot = height / 2.0
-        - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) as f32 * screen_scaling * 0.5);
+    let most_bot =
+        height / 2.0 - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) * screen_scaling * 0.5);
 
     let prefilter = image.crop_imm(
         most_left as u32,
@@ -204,16 +204,16 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         scaling
     };
 
-    let crop_width = PIXEL_REWARD_WIDTH as f32 * screen_scaling * high_scaling;
+    let crop_width = PIXEL_REWARD_WIDTH * screen_scaling * high_scaling;
     let crop_left = prefilter.width() as f32 / 2.0 - crop_width / 2.0;
-    let crop_top = height as f32 / 2.0
-        - (PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT + PIXEL_REWARD_LINE_HEIGHT) as f32
+    let crop_top = height / 2.0
+        - (PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT + PIXEL_REWARD_LINE_HEIGHT)
             * screen_scaling
             * high_scaling;
-    let crop_bot = height as f32 / 2.0
-        - (PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) as f32 * screen_scaling * low_scaling;
+    let crop_bot =
+        height / 2.0 - (PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) * screen_scaling * low_scaling;
     let crop_hei = crop_bot - crop_top;
-    let crop_top = crop_top - most_top as f32;
+    let crop_top = crop_top - most_top;
 
     let partial_screenshot = DynamicImage::ImageRgb8(prefilter.into_rgb8()).crop_imm(
         crop_left as u32,
@@ -225,7 +225,7 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
     // Draw top 5
     for (i, y) in top_five.iter().enumerate() {
         for x in 0..prefilter_draw.width() {
-            prefilter_draw.put_pixel(x as u32, *y as u32, Rgb([255 - i as u8 * 50, 0, 0]));
+            prefilter_draw.put_pixel(x, *y as u32, Rgb([255 - i as u8 * 50, 0, 0]));
         }
     }
     // Draw histogram
@@ -326,29 +326,26 @@ pub fn normalize_string(string: &str) -> String {
     string.replace(|c: char| !c.is_ascii_alphabetic(), "")
 }
 
-pub fn image_to_strings(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
+pub fn image_to_string(image: &DynamicImage) -> String {
+    let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
+    let buffer = image.as_flat_samples_u8().unwrap();
+    ocr = ocr
+        .set_frame(
+            buffer.samples,
+            image.width() as i32,
+            image.height() as i32,
+            3,
+            3 * image.width() as i32,
+        )
+        .expect("Failed to set image");
+
+    ocr.get_text().expect("Failed to get text")
+}
+
+pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
     let theme = theme.unwrap_or_else(|| detect_theme(&image));
     let parts = extract_parts(&image, theme);
     println!("Extracted part images");
 
-    parts
-        .iter()
-        .map(|part| {
-            let mut ocr =
-                Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
-            let buffer = part.as_flat_samples_u8().unwrap();
-            ocr = ocr
-                .set_frame(
-                    buffer.samples,
-                    part.width() as i32,
-                    part.height() as i32,
-                    3,
-                    3 * part.width() as i32,
-                )
-                .expect("Failed to set image");
-            let text = ocr.get_text().expect("Failed to get text");
-            println!("{}", text);
-            text
-        })
-        .collect()
+    parts.iter().map(image_to_string).collect()
 }

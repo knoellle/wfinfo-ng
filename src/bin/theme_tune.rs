@@ -24,7 +24,7 @@ fn main() {
     eframe::run_native(
         "Tune theme detection",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     );
 }
 
@@ -90,7 +90,7 @@ fn spawn_ocr_thread(
                 }
             }
             let image = &images[index];
-            let strings = ocr::image_to_strings(
+            let strings = ocr::reward_image_to_reward_names(
                 image.clone(),
                 Some(Theme::Custom(last_request.to_ordered())),
             );
@@ -232,8 +232,8 @@ impl MyApp {
         let most_top = height / 2.0
             - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT + PIXEL_REWARD_LINE_HEIGHT)
                 * screen_scaling);
-        let most_bot = height / 2.0
-            - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) as f32 * screen_scaling * 0.5);
+        let most_bot =
+            height / 2.0 - ((PIXEL_REWARD_YDISPLAY - PIXEL_REWARD_HEIGHT) * screen_scaling * 0.5);
 
         let mut new_image = image
             .crop_imm(
