@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let db = Database::load_from_file(None, None);
     println!("Loaded database");
 
-    run_detection(&warframe_window, &db);
+    run_detection(warframe_window, &db);
     loop {
         match rx.recv() {
             Ok(notify::DebouncedEvent::Write(_)) => {
@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     println!("Detected, waiting...");
                     sleep(Duration::from_millis(1500));
                     println!("Capturing");
-                    run_detection(&warframe_window, &db);
+                    run_detection(warframe_window, &db);
                 }
 
                 position = f.metadata().unwrap().len();

@@ -77,7 +77,7 @@ fn spawn_ocr_thread(
     let (response_sender, response_receiver) = channel();
     let images = images.to_owned();
 
-    thread::spawn(move || loop {
+    thread::spawn(move || {
         let database = Database::load_from_file(None, None);
         loop {
             let (mut index, mut last_request): (usize, HslRange<f32>) =
