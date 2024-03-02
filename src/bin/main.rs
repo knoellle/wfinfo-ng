@@ -1,10 +1,14 @@
 use std::error::Error;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
-use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
+use std::{fs::File, thread};
+use std::{
+    io::{BufRead, BufReader, Read, Seek, SeekFrom},
+    sync::mpsc::channel,
+};
+use std::{path::PathBuf, sync::mpsc};
 
+use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
@@ -51,18 +55,65 @@ fn run_detection(capturer: &Window, db: &Database) {
     }
 }
 
+fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
+    println!("Path: {}", path.display());
+
+    thread::spawn(move || {
+        let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
+        println!("Position: {}", position);
+
+        let (tx, rx) = mpsc::channel();
+        let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
+        watcher
+            .watch(&path, RecursiveMode::NonRecursive)
+            .unwrap_or_else(|_| panic!("Failed to open EE.log file: {}", path.display()));
+
+        loop {
+            match rx.recv() {
+                Ok(notify::DebouncedEvent::Write(_)) => {
+                    let mut f = File::open(&path).unwrap();
+                    f.seek(SeekFrom::Start(position)).unwrap();
+
+                    let mut reward_screen_detected = false;
+
+                    let reader = BufReader::new(f.by_ref());
+                    for line in reader.lines() {
+                        let line = match line {
+                            Ok(line) => line,
+                            Err(err) => {
+                                println!("Error reading line: {}", err);
+                                continue;
+                            }
+                        };
+                        // println!("> {:?}", line);
+                        if line.contains("Pause countdown done")
+                            || line.contains("Got rewards")
+                            || line.contains("Created /Lotus/Interface/ProjectionRewardChoice.swf")
+                        {
+                            reward_screen_detected = true;
+                        }
+                    }
+
+                    if reward_screen_detected {
+                        println!("Detected, waiting...");
+                        sleep(Duration::from_millis(1500));
+                        event_sender.send(()).unwrap();
+                    }
+
+                    position = f.metadata().unwrap().len();
+                    println!("Log position: {}", position);
+                }
+                Ok(_) => {}
+                Err(err) => {
+                    eprintln!("Error: {:?}", err);
+                }
+            }
+        }
+    });
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let path = std::env::args().nth(1).unwrap();
-    println!("Path: {}", path);
-    let (tx, rx) = mpsc::channel();
-    let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
-    watcher
-        .watch(&path, RecursiveMode::NonRecursive)
-        .unwrap_or_else(|_| panic!("Failed to open EE.log file: {path}"));
-
-    let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
-    println!("Position: {}", position);
-
     let windows = Window::all()?;
     let Some(warframe_window) = windows.iter().find(|x| x.title() == "Warframe") else {
         return Err("Warframe window not found".into());
@@ -77,49 +128,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let db = Database::load_from_file(None, None);
     println!("Loaded database");
 
-    run_detection(warframe_window, &db);
-    loop {
-        match rx.recv() {
-            Ok(notify::DebouncedEvent::Write(_)) => {
-                let mut f = File::open(&path).unwrap();
-                f.seek(SeekFrom::Start(position)).unwrap();
+    let (event_sender, event_receiver) = channel();
 
-                let mut reward_screen_detected = false;
+    log_watcher(path.into(), event_sender.clone());
 
-                let reader = BufReader::new(f.by_ref());
-                for line in reader.lines() {
-                    let line = match line {
-                        Ok(line) => line,
-                        Err(err) => {
-                            println!("Error reading line: {}", err);
-                            continue;
-                        }
-                    };
-                    // println!("> {:?}", line);
-                    if line.contains("Pause countdown done")
-                        || line.contains("Got rewards")
-                        || line.contains("Created /Lotus/Interface/ProjectionRewardChoice.swf")
-                    {
-                        reward_screen_detected = true;
-                    }
-                }
-
-                if reward_screen_detected {
-                    println!("Detected, waiting...");
-                    sleep(Duration::from_millis(1500));
-                    println!("Capturing");
-                    run_detection(warframe_window, &db);
-                }
-
-                position = f.metadata().unwrap().len();
-                println!("Log position: {}", position);
-            }
-            Ok(_) => {}
-            Err(err) => {
-                eprintln!("Error: {:?}", err);
-            }
-        }
+    while let Ok(()) = event_receiver.recv() {
+        println!("Capturing");
+        run_detection(warframe_window, &db);
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
