@@ -112,6 +112,21 @@ fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
     });
 }
 
+fn hotkey_watcher(hotkey: HotKey, event_sender: mpsc::Sender<()>) {
+    println!("watching hotkey: {hotkey:?}");
+    thread::spawn(move || {
+        let manager = GlobalHotKeyManager::new().unwrap();
+        manager.register(hotkey).unwrap();
+
+        while let Ok(event) = GlobalHotKeyEvent::receiver().recv() {
+            println!("{:?}", event);
+            if event.state == HotKeyState::Pressed {
+                event_sender.send(()).unwrap();
+            }
+        }
+    });
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let path = std::env::args().nth(1).unwrap();
     let windows = Window::all()?;
@@ -131,6 +146,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (event_sender, event_receiver) = channel();
 
     log_watcher(path.into(), event_sender.clone());
+    hotkey_watcher("F12".parse()?, event_sender);
 
     while let Ok(()) = event_receiver.recv() {
         println!("Capturing");
