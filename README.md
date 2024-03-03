@@ -48,4 +48,4 @@ When the highest value is determined by the ducat value and there is more than o
 # Issue and Workarounds
 
 - Due to buffering when the game writes the `EE.log` file, it is possible that WFInfo doesn't pick up the reward screen event until the screen has disappeared. I haven't found a way of getting around the buffered writer.
-  To work around this, you can simply restart the program when it doesn't pick up the reward screen within a few seconds.
+  If this happens, you can manually trigger the detection by pressing the F12 key.
