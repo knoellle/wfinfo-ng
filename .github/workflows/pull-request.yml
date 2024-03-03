@@ -13,6 +13,7 @@ jobs:
         with:
           lfs: true
       - uses: ./.github/actions/dependencies
+      - uses: Swatinem/rust-cache@v2.7.3
       - name: Check
         run: |
           cargo clippy --workspace --all-features
@@ -25,6 +26,7 @@ jobs:
         with:
           lfs: true
       - uses: ./.github/actions/dependencies
+      - uses: Swatinem/rust-cache@v2.7.3
       - name: Check
         run: |
           cargo fmt --check
@@ -37,6 +39,7 @@ jobs:
         with:
           lfs: true
       - uses: ./.github/actions/dependencies
+      - uses: Swatinem/rust-cache@v2.7.3
       - name: Check
         run: |
           cargo build --release
