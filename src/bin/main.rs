@@ -9,23 +9,50 @@ use std::{
 use std::{path::PathBuf, sync::mpsc};
 
 use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
-use image::DynamicImage;
-use notify::{watcher, RecursiveMode, Watcher};
+use image::{DynamicImage, GenericImage, Rgba};
+use notify::{RecursiveMode, Watcher};
+use notify_debouncer_full::new_debouncer;
 use xcap::Window;
 
-use wfinfo::database::Database;
 use wfinfo::ocr::{normalize_string, reward_image_to_reward_names};
+use wfinfo::{database::Database, overlay::Overlay};
 
-fn run_detection(capturer: &Window, db: &Database) {
-    let frame = capturer.capture_image().unwrap();
+fn run_detection(window: &Window, db: &Database) {
+    let frame = window.capture_image().unwrap();
     println!("Captured");
-    let image = DynamicImage::ImageRgba8(frame);
+    let mut image = DynamicImage::ImageRgba8(frame);
     println!("Converted");
-    let text = reward_image_to_reward_names(image, None);
-    let text = text.iter().map(|s| normalize_string(s));
+    let ocr = reward_image_to_reward_names(image.clone(), None);
+    let min_x = ocr
+        .parts
+        .iter()
+        .map(|part| part.position.0)
+        .min()
+        .unwrap_or(50);
+    let max_x = ocr
+        .parts
+        .iter()
+        .map(|part| part.position.0 + part.image.width())
+        .max()
+        .unwrap_or(50);
+    let y = ocr
+        .parts
+        .iter()
+        .map(|part| part.position.1 + part.image.height())
+        .max()
+        .unwrap_or(500);
+    for x in min_x..max_x {
+        image.put_pixel(x, y, Rgba([0, 255, 0, 255]))
+    }
+    image.save("overlay.png").unwrap();
+    let text: Vec<_> = ocr
+        .parts
+        .iter()
+        .map(|part| normalize_string(&part.text))
+        .collect();
     println!("{:#?}", text);
 
-    let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
+    let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
 
     let best = items
         .iter()
@@ -53,6 +80,8 @@ fn run_detection(capturer: &Window, db: &Database) {
             println!("Unknown item\n\tUnknown");
         }
     }
+
+    Overlay::show(ocr, (window.x() as u32, window.y() as u32))
 }
 
 fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
@@ -63,14 +92,15 @@ fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
         println!("Position: {}", position);
 
         let (tx, rx) = mpsc::channel();
-        let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
-        watcher
+        let mut debouncer = new_debouncer(Duration::from_millis(100), None, tx).unwrap();
+        debouncer
+            .watcher()
             .watch(&path, RecursiveMode::NonRecursive)
             .unwrap_or_else(|_| panic!("Failed to open EE.log file: {}", path.display()));
 
         loop {
             match rx.recv() {
-                Ok(notify::DebouncedEvent::Write(_)) => {
+                Ok(Ok(_)) => {
                     let mut f = File::open(&path).unwrap();
                     f.seek(SeekFrom::Start(position)).unwrap();
 
@@ -128,9 +158,11 @@ fn hotkey_watcher(hotkey: HotKey, event_sender: mpsc::Sender<()>) {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Overlay::show();
+    // return Ok(());
     let path = std::env::args().nth(1).unwrap();
     let windows = Window::all()?;
-    let Some(warframe_window) = windows.iter().find(|x| x.title() == "Warframe") else {
+    let Some(warframe_window) = windows.iter().find(|x| x.title() == "sxiv") else {
         return Err("Warframe window not found".into());
     };
 

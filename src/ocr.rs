@@ -6,6 +6,21 @@ use image::{DynamicImage, GenericImageView, Pixel, Rgb};
 
 use crate::theme::Theme;
 
+pub struct OcrResult {
+    pub parts: Vec<OcrPart>,
+}
+
+pub struct OcrPart {
+    pub text: String,
+    pub image: DynamicImage,
+    pub position: (u32, u32),
+}
+
+pub struct TrackedImage {
+    pub image: DynamicImage,
+    pub position: (u32, u32),
+}
+
 const PIXEL_REWARD_WIDTH: f32 = 968.0;
 const PIXEL_REWARD_HEIGHT: f32 = 235.0;
 const PIXEL_REWARD_YDISPLAY: f32 = 316.0;
@@ -53,7 +68,7 @@ pub fn detect_theme(image: &DynamicImage) -> Theme {
         .to_owned()
 }
 
-pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
+pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<TrackedImage> {
     image.save("input.png").unwrap();
     let screen_scaling = if image.width() * 9 > image.height() * 16 {
         image.height() as f32 / 1080.0
@@ -221,6 +236,10 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         crop_width as u32,
         crop_hei as u32,
     );
+    let partial_screenshot = TrackedImage {
+        image: partial_screenshot,
+        position: ((most_left + crop_left) as u32, (most_top + crop_top) as u32),
+    };
 
     // Draw top 5
     for (i, y) in top_five.iter().enumerate() {
@@ -237,16 +256,19 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
 
     prefilter_draw.save("prefilter.png").unwrap();
 
-    partial_screenshot.save("partial_screenshot.png").unwrap();
+    partial_screenshot
+        .image
+        .save("partial_screenshot.png")
+        .unwrap();
 
     filter_and_separate_parts_from_part_box(partial_screenshot, theme)
 }
 
 pub fn filter_and_separate_parts_from_part_box(
-    image: DynamicImage,
+    image: TrackedImage,
     theme: Theme,
-) -> Vec<DynamicImage> {
-    let mut filtered = image.into_rgb8();
+) -> Vec<TrackedImage> {
+    let mut filtered = image.image.into_rgb8();
 
     let mut _weight = 0.0;
     let mut total_even = 0.0;
@@ -316,7 +338,13 @@ pub fn filter_and_separate_parts_from_part_box(
         cropped
             .save(format!("part-{}.png", i))
             .expect("Failed to write image");
-        images.push(cropped);
+        images.push(TrackedImage {
+            image: cropped,
+            position: (
+                image.position.0 + curr_left + i * box_width,
+                image.position.1,
+            ),
+        });
     }
 
     images
@@ -326,26 +354,32 @@ pub fn normalize_string(string: &str) -> String {
     string.replace(|c: char| !c.is_ascii_alphabetic(), "")
 }
 
-pub fn image_to_string(image: &DynamicImage) -> String {
+pub fn image_to_string(image: TrackedImage) -> OcrPart {
     let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
-    let buffer = image.as_flat_samples_u8().unwrap();
+    let buffer = image.image.as_flat_samples_u8().unwrap();
     ocr = ocr
         .set_frame(
             buffer.samples,
-            image.width() as i32,
-            image.height() as i32,
+            image.image.width() as i32,
+            image.image.height() as i32,
             3,
-            3 * image.width() as i32,
+            3 * image.image.width() as i32,
         )
         .expect("Failed to set image");
 
-    ocr.get_text().expect("Failed to get text")
+    OcrPart {
+        text: ocr.get_text().expect("Failed to get text"),
+        position: image.position,
+        image: image.image,
+    }
 }
 
-pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
+pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -> OcrResult {
     let theme = theme.unwrap_or_else(|| detect_theme(&image));
     let parts = extract_parts(&image, theme);
     println!("Extracted part images");
 
-    parts.iter().map(image_to_string).collect()
+    OcrResult {
+        parts: parts.into_iter().map(image_to_string).collect(),
+    }
 }

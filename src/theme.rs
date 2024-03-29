@@ -110,15 +110,15 @@ impl Theme {
             Theme::Stalker => {
                 (0.61..1.00).contains(&test.saturation)
                     && (0.25..0.65).contains(&test.lightness)
-                    && (-10.0..5.0).contains(&test.hue.to_degrees())
+                    && (-10.0..5.0).contains(&test.hue.into_degrees())
             }
             Theme::HighContrast => {
                 test.saturation >= 0.60
                     && (0.23..0.45).contains(&test.lightness)
-                    && (-160.0..-145.0).contains(&test.hue.to_degrees())
+                    && (-160.0..-145.0).contains(&test.hue.into_degrees())
             }
             Theme::Custom(range) => {
-                range.hue.contains(&OrderedFloat(test.hue.to_degrees()))
+                range.hue.contains(&OrderedFloat(test.hue.into_degrees()))
                     && range.saturation.contains(&OrderedFloat(test.saturation))
                     && range.lightness.contains(&OrderedFloat(test.lightness))
             }
