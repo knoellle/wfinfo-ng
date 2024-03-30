@@ -81,7 +81,11 @@ fn run_detection(window: &Window, db: &Database) {
         }
     }
 
-    Overlay::show(ocr, (window.x() as u32, window.y() as u32))
+    Overlay::show(
+        ocr,
+        (window.x(), window.y()),
+        (window.width() as i32, window.height() as i32),
+    )
 }
 
 fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
@@ -161,16 +165,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Overlay::show();
     // return Ok(());
     let path = std::env::args().nth(1).unwrap();
-    let windows = Window::all()?;
-    let Some(warframe_window) = windows.iter().find(|x| x.title() == "sxiv") else {
-        return Err("Warframe window not found".into());
-    };
-
-    println!(
-        "Capture source resolution: {:?}x{:?}",
-        warframe_window.width(),
-        warframe_window.height()
-    );
 
     let db = Database::load_from_file(None, None);
     println!("Loaded database");
@@ -181,7 +175,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     hotkey_watcher("F12".parse()?, event_sender);
 
     while let Ok(()) = event_receiver.recv() {
+        let windows = Window::all()?;
+        let Some(warframe_window) = windows.iter().find(|x| x.title() == "sxiv") else {
+            println!("Warframe window not found");
+            continue;
+        };
         println!("Capturing");
+        println!(
+            "Capture source resolution: {:?}x{:?}",
+            warframe_window.width(),
+            warframe_window.height()
+        );
         run_detection(warframe_window, &db);
     }
 

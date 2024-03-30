@@ -1,14 +1,11 @@
-use eframe::{
-    egui::{CentralPanel, ViewportCommand},
-    App, NativeOptions,
-};
+use eframe::{egui::CentralPanel, App, NativeOptions};
 
 use crate::ocr::OcrResult;
 
 #[derive(Default)]
 pub struct Overlay {
     frame: usize,
-    position: (u32, u32),
+    position: (i32, i32),
     width: u32,
 }
 
@@ -17,14 +14,19 @@ impl App for Overlay {
         ctx.request_repaint();
         self.frame += 1;
         // ctx.send_viewport_cmd(eframe::egui::ViewportCommand::center_on_screen(ctx).unwrap());
-        if self.frame == 100 {
-            ctx.send_viewport_cmd(ViewportCommand::center_on_screen(ctx).unwrap());
-            // ctx.send_viewport_cmd(eframe::egui::ViewportCommand::OuterPosition(
-            //     [self.position.0 as f32, self.position.1 as f32].into(),
-            // ));
+        if self.frame == 1 {
+            // ctx.send_viewport_cmd(ViewportCommand::center_on_screen(ctx).unwrap());
+            let f = ctx.native_pixels_per_point().unwrap();
+            ctx.send_viewport_cmd(eframe::egui::ViewportCommand::OuterPosition(
+                [self.position.0 as f32 / f, self.position.1 as f32 / f].into(),
+            ));
             // ctx.send_viewport_cmd(eframe::egui::ViewportCommand::InnerSize(
             //     [self.width as f32, 200.0].into(),
             // ));
+        }
+
+        if self.frame > 100 {
+            ctx.send_viewport_cmd(eframe::egui::ViewportCommand::Close);
         }
 
         // if let Some(command) = ctx.input(|i| {
@@ -57,14 +59,16 @@ impl App for Overlay {
 }
 
 impl Overlay {
-    pub fn show(ocr: OcrResult, window_position: (u32, u32)) {
+    pub fn show(ocr: OcrResult, window_position: (i32, i32), window_size: (i32, i32)) {
+        let x = window_position.0 + window_size.0 / 2 - 150;
+        let y = window_position.1 + window_size.1 / 2 - 150;
         let options = NativeOptions {
             viewport: eframe::egui::ViewportBuilder::default()
                 .with_always_on_top()
                 // .with_mouse_passthrough(true)
                 .with_transparent(true)
                 .with_decorations(false)
-                // .with_position([0.0, 500.0])
+                // .with_position([x as f32 / f, y as f32 / f])
                 .with_resizable(false)
                 .with_inner_size([300.0, 300.0]),
             ..Default::default()
@@ -72,12 +76,14 @@ impl Overlay {
         eframe::run_native(
             "WFInfo Overlay",
             options,
-            Box::new(move |_cc| Box::<Overlay>::new(Overlay::new(ocr, window_position))),
+            Box::new(move |_cc| {
+                Box::<Overlay>::new(Overlay::new(ocr, window_position, window_size))
+            }),
         )
         .unwrap();
     }
 
-    pub fn new(ocr: OcrResult, window_position: (u32, u32)) -> Self {
+    pub fn new(ocr: OcrResult, window_position: (i32, i32), window_size: (i32, i32)) -> Self {
         let min_x = ocr
             .parts
             .iter()
@@ -101,10 +107,14 @@ impl Overlay {
         dbg!(max_x);
         dbg!(y);
         dbg!(window_position);
+        dbg!(window_size);
+
+        let x = window_position.0 + window_size.0 / 2 - 150;
+        let y = window_position.1 + window_size.1 / 2 - 150;
 
         Self {
             frame: 0,
-            position: dbg!(min_x + window_position.0, y + window_position.1),
+            position: dbg!(x, y),
             width: max_x - min_x,
         }
     }

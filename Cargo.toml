@@ -17,7 +17,7 @@ path = "src/bin/main.rs"
 anyhow = "1.0.80"
 approx = "0.5.1"
 clap = { version = "4.5.2", features = ["derive"] }
-eframe = "0.26.2"
+eframe = "0.27.1"
 egui_extras = "0.26.2"
 global-hotkey = "0.5.0"
 image = "0.24.9"
