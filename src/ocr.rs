@@ -1,3 +1,4 @@
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use tesseract::Tesseract;
@@ -23,25 +24,28 @@ pub fn detect_theme(image: &DynamicImage) -> Theme {
 
     let min_width = most_width / 4.0;
 
-    let mut weights: HashMap<Theme, f32> = HashMap::new();
-    let mut debug_image = image.clone().into_rgb8();
+    let weights = (line_height as u32..image.height())
+        .into_par_iter()
+        .fold(HashMap::new, |mut weights: HashMap<Theme, f32>, y| {
+            let perc = (y as f32 - line_height) / (image.height() as f32 - line_height);
+            let total_width = min_width * perc + min_width;
+            for x in 0..total_width as u32 {
+                let closest = Theme::closest_from_color(
+                    image
+                        .get_pixel(x + (most_width - total_width) as u32 / 2, y)
+                        .to_rgb(),
+                );
 
-    for y in line_height as u32..image.height() {
-        let perc = (y as f32 - line_height) / (image.height() as f32 - line_height);
-        let total_width = min_width * perc + min_width;
-        for x in 0..total_width as u32 {
-            let closest = Theme::closest_from_color(
-                image
-                    .get_pixel(x + (most_width - total_width) as u32 / 2, y)
-                    .to_rgb(),
-            );
-            debug_image.put_pixel(x + (most_width - total_width) as u32 / 2, y, Rgb([255; 3]));
-
-            *weights.entry(closest.0).or_insert(0.0) += 1.0 / (1.0 + closest.1).powi(4)
-        }
-    }
-
-    debug_image.save("theme_detection.png").unwrap();
+                *weights.entry(closest.0).or_insert(0.0) += 1.0 / (1.0 + closest.1).powi(4)
+            }
+            weights
+        })
+        .reduce(HashMap::new, |mut a, b| {
+            for (k, v) in b {
+                *a.entry(k).or_insert(0.0) += v;
+            }
+            a
+        });
 
     println!("{:#?}", weights);
 
