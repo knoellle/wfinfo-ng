@@ -13,8 +13,8 @@ use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
 
-use wfinfo::database::Database;
 use wfinfo::ocr::{normalize_string, reward_image_to_reward_names};
+use wfinfo::{database::Database, ocr::OCR};
 
 fn run_detection(capturer: &Window, db: &Database) {
     let frame = capturer.capture_image().unwrap();
@@ -127,9 +127,25 @@ fn hotkey_watcher(hotkey: HotKey, event_sender: mpsc::Sender<()>) {
     });
 }
 
+#[allow(dead_code)]
+fn benchmark() -> Result<(), Box<dyn Error>> {
+    for _ in 0..10 {
+        let image = image::open("input3.png").unwrap();
+        println!("Converted");
+        let text = reward_image_to_reward_names(image, None);
+        println!("got names");
+        let text = text.iter().map(|s| normalize_string(s));
+        println!("{:#?}", text);
+    }
+    // clean up tesseract
+    drop(OCR.lock().unwrap().take());
+    Ok(())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let path = std::env::args().nth(1).unwrap();
     let windows = Window::all()?;
+    let db = Database::load_from_file(None, None);
     let Some(warframe_window) = windows.iter().find(|x| x.title() == "Warframe") else {
         return Err("Warframe window not found".into());
     };
@@ -140,7 +156,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         warframe_window.height()
     );
 
-    let db = Database::load_from_file(None, None);
     println!("Loaded database");
 
     let (event_sender, event_receiver) = channel();
@@ -153,6 +168,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         run_detection(warframe_window, &db);
     }
 
+    drop(OCR.lock().unwrap().take());
     Ok(())
 }
 

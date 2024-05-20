@@ -1,6 +1,7 @@
+use lazy_static::lazy_static;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::{collections::HashMap, sync::Mutex};
 use tesseract::Tesseract;
 
 use image::{DynamicImage, GenericImageView, Pixel, Rgb};
@@ -330,8 +331,8 @@ pub fn normalize_string(string: &str) -> String {
     string.replace(|c: char| !c.is_ascii_alphabetic(), "")
 }
 
-pub fn image_to_string(image: &DynamicImage) -> String {
-    let mut ocr = Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract");
+pub fn image_to_string(tesseract: &mut Option<Tesseract>, image: &DynamicImage) -> String {
+    let mut ocr = tesseract.take().unwrap();
     let buffer = image.as_flat_samples_u8().unwrap();
     ocr = ocr
         .set_frame(
@@ -343,7 +344,16 @@ pub fn image_to_string(image: &DynamicImage) -> String {
         )
         .expect("Failed to set image");
 
-    ocr.get_text().expect("Failed to get text")
+    let result = ocr.get_text().expect("Failed to get text");
+    tesseract.replace(ocr);
+
+    result
+}
+
+lazy_static! {
+    pub static ref OCR: Mutex<Option<Tesseract>> = Mutex::new(Some(
+        Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract")
+    ));
 }
 
 pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
@@ -351,5 +361,8 @@ pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -
     let parts = extract_parts(&image, theme);
     println!("Extracted part images");
 
-    parts.iter().map(image_to_string).collect()
+    parts
+        .iter()
+        .map(|image| image_to_string(&mut OCR.lock().unwrap(), image))
+        .collect()
 }
