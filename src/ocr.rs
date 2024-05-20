@@ -86,7 +86,7 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         (most_bot - most_top) as u32,
     );
     let mut prefilter_draw = prefilter.clone().into_rgb8();
-    prefilter.save("prefilter.png").unwrap();
+    // prefilter.save("prefilter.png").unwrap();
 
     let mut rows = Vec::<usize>::new();
     for y in 0..prefilter.height() {
@@ -240,9 +240,9 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         }
     }
 
-    prefilter_draw.save("prefilter.png").unwrap();
+    // prefilter_draw.save("prefilter.png").unwrap();
 
-    partial_screenshot.save("partial_screenshot.png").unwrap();
+    // partial_screenshot.save("partial_screenshot.png").unwrap();
 
     filter_and_separate_parts_from_part_box(partial_screenshot, theme)
 }
@@ -290,9 +290,9 @@ pub fn filter_and_separate_parts_from_part_box(
         }
     }
 
-    filtered
-        .save("filtered.png")
-        .expect("Failed to write filtered image");
+    // filtered
+    //     .save("filtered.png")
+    //     .expect("Failed to write filtered image");
 
     if total_even == 0.0 && total_odd == 0.0 {
         return vec![];
@@ -318,9 +318,9 @@ pub fn filter_and_separate_parts_from_part_box(
     let dynamic_image = DynamicImage::ImageRgb8(filtered);
     for i in 0..player_count {
         let cropped = dynamic_image.crop_imm(curr_left + i * box_width, 0, box_width, box_height);
-        cropped
-            .save(format!("part-{}.png", i))
-            .expect("Failed to write image");
+        // cropped
+        //     .save(format!("part-{}.png", i))
+        //     .expect("Failed to write image");
         images.push(cropped);
     }
 

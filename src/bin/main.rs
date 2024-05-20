@@ -13,8 +13,10 @@ use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
 
-use wfinfo::ocr::{normalize_string, reward_image_to_reward_names};
-use wfinfo::{database::Database, ocr::OCR};
+use wfinfo::{
+    database::Database,
+    ocr::{normalize_string, reward_image_to_reward_names, OCR},
+};
 
 fn run_detection(capturer: &Window, db: &Database) {
     let frame = capturer.capture_image().unwrap();
