@@ -35,8 +35,10 @@ Doesn't support:
 Run the `update.sh` script to download the latest database files.
 
 Find where your game puts it's `EE.log` file. Mine is located at `.local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log`.
+When your EE.log file is in a different place, use the -p, --path argument to specify its location.
+If your EE.log file is present in this default directory you can start wfinfo without further configuration.
 
-Now run `wfinfo <path to your EE.log file>`
+Now run `wfinfo`
 This will run the program, immediately taking a screenshot and analyzing it, see section Issues and Workarounds for why.
 The program then waits for the reward screen, trying to detect items in the screenshot.
 
