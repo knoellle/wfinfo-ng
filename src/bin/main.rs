@@ -1,6 +1,6 @@
-use std::error::Error;
 use std::thread::sleep;
 use std::time::Duration;
+use std::{error::Error, str::FromStr};
 use std::{fs::File, thread};
 use std::{
     io::{BufRead, BufReader, Read, Seek, SeekFrom},
@@ -8,6 +8,7 @@ use std::{
 };
 use std::{path::PathBuf, sync::mpsc};
 
+use clap::Parser;
 use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use image::DynamicImage;
 use notify::{watcher, RecursiveMode, Watcher};
@@ -59,9 +60,12 @@ fn run_detection(capturer: &Window, db: &Database) {
 
 fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
     println!("Path: {}", path.display());
+    let mut position = File::open(&path)
+        .unwrap_or_else(|_| panic!("Couldn't open file {}", path.display()))
+        .seek(SeekFrom::End(0))
+        .unwrap();
 
     thread::spawn(move || {
-        let mut position = File::open(&path).unwrap().seek(SeekFrom::End(0)).unwrap();
         println!("Position: {}", position);
 
         let (tx, rx) = mpsc::channel();
@@ -144,8 +148,18 @@ fn benchmark() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[derive(Parser)]
+struct Arguments {
+    /// Path to the `EE.log` file located in the game installation directory
+    ///
+    /// Most likely located at `~/.local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log`
+    game_log_file_path: Option<PathBuf>,
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
-    let path = std::env::args().nth(1).unwrap();
+    let arguments = Arguments::parse();
+    let default_log_path = PathBuf::from_str(&std::env::var("HOME").unwrap()).unwrap().join(PathBuf::from_str(".local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")?);
+    let log_path = arguments.game_log_file_path.unwrap_or(default_log_path);
     let windows = Window::all()?;
     let db = Database::load_from_file(None, None);
     let Some(warframe_window) = windows.iter().find(|x| x.title() == "Warframe") else {
@@ -162,7 +176,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (event_sender, event_receiver) = channel();
 
-    log_watcher(path.into(), event_sender.clone());
+    log_watcher(log_path, event_sender.clone());
     hotkey_watcher("F12".parse()?, event_sender);
 
     while let Ok(()) = event_receiver.recv() {
