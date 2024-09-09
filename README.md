@@ -36,7 +36,7 @@ Run the `update.sh` script to download the latest database files.
 
 Find where your game puts it's `EE.log` file. Mine is located at `.local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log`.
 
-Now run `wfinfo <path to your EE.log file>`
+Now run `wfinfo <path to your EE.log file>` (the path is optional if your EE.log file is in the default location)
 This will run the program, immediately taking a screenshot and analyzing it, see section Issues and Workarounds for why.
 The program then waits for the reward screen, trying to detect items in the screenshot.
 
@@ -49,3 +49,9 @@ When the highest value is determined by the ducat value and there is more than o
 
 - Due to buffering when the game writes the `EE.log` file, it is possible that WFInfo doesn't pick up the reward screen event until the screen has disappeared. I haven't found a way of getting around the buffered writer.
   If this happens, you can manually trigger the detection by pressing the F12 key.
+
+# Logging
+
+Using the Environment Variables WFINFO_LOG you can control the output.
+There are several levels: error, warn, info, debug, trace, off
+[docs](https://docs.rs/env_logger/latest/env_logger/index.html#enabling-logging)
