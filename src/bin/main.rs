@@ -149,6 +149,7 @@ fn benchmark() -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(Parser)]
+#[command(version, about, long_about = None)]
 struct Arguments {
     /// Path to the `EE.log` file located in the game installation directory
     ///
@@ -157,6 +158,7 @@ struct Arguments {
     /// Warframe Window Name
     ///
     /// some systems may require the window name to be specified (e.g. when using gamescope)
+    #[arg(short, long, default_value = "Warframe")]
     window_name: Option<String>,
 }
 
@@ -164,7 +166,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let arguments = Arguments::parse();
     let default_log_path = PathBuf::from_str(&std::env::var("HOME").unwrap()).unwrap().join(PathBuf::from_str(".local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")?);
     let log_path = arguments.game_log_file_path.unwrap_or(default_log_path);
-    let window_name = arguments.window_name.unwrap_or("Warframe".to_string());
+    let window_name = arguments.window_name.unwrap();
     let windows = Window::all()?;
     let db = Database::load_from_file(None, None);
     let Some(warframe_window) = windows.iter().find(|x| x.title() == window_name) else {
