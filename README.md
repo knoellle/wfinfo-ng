@@ -50,4 +50,4 @@ When the highest value is determined by the ducat value and there is more than o
 - Due to buffering when the game writes the `EE.log` file, it is possible that WFInfo doesn't pick up the reward screen event until the screen has disappeared. I haven't found a way of getting around the buffered writer.
   If this happens, you can manually trigger the detection by pressing the F12 key.
 
-- If you are using gamescope add the flag --window-name=gamescope
+- If you are using gamescope add the flag `--window-name=gamescope`
