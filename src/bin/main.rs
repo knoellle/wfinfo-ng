@@ -9,18 +9,17 @@ use std::{
 use std::{path::PathBuf, sync::mpsc};
 
 use clap::Parser;
+use env_logger::{Builder, Env};
 use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use image::DynamicImage;
+use log::{debug, error, info, warn};
 use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
-use log::{debug, error, log_enabled, info, Level, warn};
-use env_logger::{Builder, Env};
 
 use wfinfo::{
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
 };
-
 
 fn run_detection(capturer: &Window, db: &Database) {
     let frame = capturer.capture_image().unwrap();
@@ -163,11 +162,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let arguments = Arguments::parse();
     let default_log_path = PathBuf::from_str(&std::env::var("HOME").unwrap()).unwrap().join(PathBuf::from_str(".local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")?);
     let log_path = arguments.game_log_file_path.unwrap_or(default_log_path);
-    
     let env = Env::default()
         .filter_or("WFINFO_LOG", "info")
         .write_style_or("WFINFO_STYLE", "always");
-    
     Builder::from_env(env)
         .format_timestamp(None)
         .format_level(false)
