@@ -9,8 +9,10 @@ use std::{
 use std::{path::PathBuf, sync::mpsc};
 
 use clap::Parser;
+use env_logger::{Builder, Env};
 use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use image::DynamicImage;
+use log::{debug, error, info, warn};
 use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
 
@@ -21,12 +23,12 @@ use wfinfo::{
 
 fn run_detection(capturer: &Window, db: &Database) {
     let frame = capturer.capture_image().unwrap();
-    println!("Captured");
+    info!("Captured");
     let image = DynamicImage::ImageRgba8(frame);
-    println!("Converted");
+    info!("Converted");
     let text = reward_image_to_reward_names(image, None);
     let text = text.iter().map(|s| normalize_string(s));
-    println!("{:#?}", text);
+    debug!("{:#?}", text);
 
     let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
 
@@ -45,7 +47,7 @@ fn run_detection(capturer: &Window, db: &Database) {
 
     for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
-            println!(
+            info!(
                 "{}\n\t{}\t{}\t{}",
                 item.drop_name,
                 item.platinum,
@@ -53,20 +55,20 @@ fn run_detection(capturer: &Window, db: &Database) {
                 if Some(index) == best { "<----" } else { "" }
             );
         } else {
-            println!("Unknown item\n\tUnknown");
+            warn!("Unknown item\n\tUnknown");
         }
     }
 }
 
 fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
-    println!("Path: {}", path.display());
+    debug!("Path: {}", path.display());
     let mut position = File::open(&path)
         .unwrap_or_else(|_| panic!("Couldn't open file {}", path.display()))
         .seek(SeekFrom::End(0))
         .unwrap();
 
     thread::spawn(move || {
-        println!("Position: {}", position);
+        debug!("Position: {}", position);
 
         let (tx, rx) = mpsc::channel();
         let mut watcher = watcher(tx, Duration::from_millis(100)).unwrap();
@@ -87,11 +89,11 @@ fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
                         let line = match line {
                             Ok(line) => line,
                             Err(err) => {
-                                println!("Error reading line: {}", err);
+                                error!("Error reading line: {}", err);
                                 continue;
                             }
                         };
-                        // println!("> {:?}", line);
+                        // debug!("> {:?}", line);
                         if line.contains("Pause countdown done")
                             || line.contains("Got rewards")
                             || line.contains("Created /Lotus/Interface/ProjectionRewardChoice.swf")
@@ -101,17 +103,17 @@ fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
                     }
 
                     if reward_screen_detected {
-                        println!("Detected, waiting...");
+                        info!("Detected, waiting...");
                         sleep(Duration::from_millis(1500));
                         event_sender.send(()).unwrap();
                     }
 
                     position = f.metadata().unwrap().len();
-                    println!("Log position: {}", position);
+                    debug!("Log position: {}", position);
                 }
                 Ok(_) => {}
                 Err(err) => {
-                    eprintln!("Error: {:?}", err);
+                    error!("Error: {:?}", err);
                 }
             }
         }
@@ -119,13 +121,13 @@ fn log_watcher(path: PathBuf, event_sender: mpsc::Sender<()>) {
 }
 
 fn hotkey_watcher(hotkey: HotKey, event_sender: mpsc::Sender<()>) {
-    println!("watching hotkey: {hotkey:?}");
+    debug!("watching hotkey: {hotkey:?}");
     thread::spawn(move || {
         let manager = GlobalHotKeyManager::new().unwrap();
         manager.register(hotkey).unwrap();
 
         while let Ok(event) = GlobalHotKeyEvent::receiver().recv() {
-            println!("{:?}", event);
+            debug!("{:?}", event);
             if event.state == HotKeyState::Pressed {
                 event_sender.send(()).unwrap();
             }
@@ -167,19 +169,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     let default_log_path = PathBuf::from_str(&std::env::var("HOME").unwrap()).unwrap().join(PathBuf::from_str(".local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")?);
     let log_path = arguments.game_log_file_path.unwrap_or(default_log_path);
     let window_name = arguments.window_name;
+    let env = Env::default()
+        .filter_or("WFINFO_LOG", "info")
+        .write_style_or("WFINFO_STYLE", "always");
+    Builder::from_env(env)
+        .format_timestamp(None)
+        .format_level(false)
+        .format_module_path(false)
+        .format_target(false)
+        .init();
+
     let windows = Window::all()?;
     let db = Database::load_from_file(None, None);
     let Some(warframe_window) = windows.iter().find(|x| x.title() == window_name) else {
         return Err("Warframe window not found".into());
     };
 
-    println!(
+    debug!(
         "Capture source resolution: {:?}x{:?}",
         warframe_window.width(),
         warframe_window.height()
     );
 
-    println!("Loaded database");
+    info!("Loaded database");
 
     let (event_sender, event_receiver) = channel();
 
@@ -187,7 +199,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     hotkey_watcher("F12".parse()?, event_sender);
 
     while let Ok(()) = event_receiver.recv() {
-        println!("Capturing");
+        info!("Capturing");
         run_detection(warframe_window, &db);
     }
 

@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::Mutex};
 use tesseract::Tesseract;
 
 use image::{DynamicImage, GenericImageView, Pixel, Rgb};
+use log::debug;
 
 use crate::theme::Theme;
 
@@ -48,7 +49,7 @@ pub fn detect_theme(image: &DynamicImage) -> Theme {
             a
         });
 
-    println!("{:#?}", weights);
+    debug!("{:#?}", weights);
 
     weights
         .iter()
@@ -122,9 +123,9 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         let text_both_bot = (screen_scaling * text_segments[2] * scale as f32 / 100.0) as usize;
         let text_tail_bot = (screen_scaling * text_segments[3] * scale as f32 / 100.0) as usize;
 
-        // println!("");
-        // println!("i: {}", i);
-        // println!("y_from_top: {}", y_from_top);
+        // debug!("");
+        // debug!("i: {}", i);
+        // debug!("y_from_top: {}", y_from_top);
         let mut w = 0.0;
         for loc in text_top..text_top_bot + 1 {
             w += (scale_width as f32 * 0.06 - rows[y_from_top + loc] as f32).abs();
@@ -173,7 +174,7 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         }
     }
 
-    println!("Scaling: {}", scaling);
+    debug!("Scaling: {}", scaling);
 
     let mut top_five = [-1_isize; 5];
     for (i, _w) in perc_weights.iter().enumerate() {
@@ -193,9 +194,9 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
         }
     }
 
-    println!("top_five: {:?}", top_five);
+    debug!("top_five: {:?}", top_five);
     scaling = top_five[4] as f32 + 50.0;
-    println!("scaling: {:?}", top_five);
+    debug!("scaling: {:?}", top_five);
 
     scaling /= 100.0;
     let high_scaling = if scaling < 1.0 {
@@ -278,7 +279,7 @@ pub fn filter_and_separate_parts_from_part_box(
         //     Rgb([255, 0, 0]),
         // );
 
-        // println!("{}", cosine_thing);
+        // debug!("{}", cosine_thing);
 
         let this_weight = cosine_thing * count as f32;
         _weight += this_weight;
@@ -299,8 +300,8 @@ pub fn filter_and_separate_parts_from_part_box(
     }
 
     let _total = total_even + total_odd;
-    // println!("Even: {}", total_even / total);
-    // println!("Odd: {}", total_odd / total);
+    // debug!("Even: {}", total_even / total);
+    // debug!("Odd: {}", total_odd / total);
 
     let box_width = filtered.width() / 4;
     let box_height = filtered.height();
@@ -359,7 +360,7 @@ lazy_static! {
 pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
     let theme = theme.unwrap_or_else(|| detect_theme(&image));
     let parts = extract_parts(&image, theme);
-    println!("Extracted part images");
+    debug!("Extracted part images");
 
     parts
         .iter()
