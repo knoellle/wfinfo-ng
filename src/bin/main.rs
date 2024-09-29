@@ -19,6 +19,7 @@ use xcap::Window;
 use wfinfo::{
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
+    utils::fetch_prices_and_items,
 };
 
 fn run_detection(capturer: &Window, db: &Database) {
@@ -173,7 +174,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let windows = Window::all()?;
-    let db = Database::load_from_file(None, None);
     let Some(warframe_window) = windows.iter().find(|x| x.title() == "Warframe") else {
         return Err("Warframe window not found".into());
     };
@@ -183,6 +183,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         warframe_window.width(),
         warframe_window.height()
     );
+
+    let (prices, items) = fetch_prices_and_items()?;
+    let db = Database::load_from_file(Some(&prices), Some(&items));
 
     info!("Loaded database");
 
