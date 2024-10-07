@@ -53,7 +53,6 @@ When the highest value is determined by the ducat value and there is more than o
 
 - If you are using gamescope add the flag `--window-name=gamescope`
 
-=======
 # Logging
 
 Using the Environment Variables WFINFO_LOG you can control the output.
