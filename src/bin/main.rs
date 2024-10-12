@@ -85,6 +85,7 @@ fn run_detection(capturer: &dyn Capturable, db: &Database, is_hdr: bool, lumines
     } else {
         DynamicImage::ImageRgba8(frame)
     };
+    info!("Converted");
 
     let text = reward_image_to_reward_names(image, None);
     let text = text.iter().map(|s| normalize_string(s));
