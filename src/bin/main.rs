@@ -8,22 +8,21 @@ use std::{
 };
 use std::{path::PathBuf, sync::mpsc};
 
-use clap::{Parser, Subcommand};
+use clap::{Parser};
 use env_logger::{Builder, Env};
 use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
-use image::DynamicImage;
 use log::{debug, error, info, warn};
 use notify::{watcher, RecursiveMode, Watcher};
 use xcap::{Window, Monitor};
 use std::time::{SystemTime, UNIX_EPOCH};
-use image::ImageFormat;
+use bytemuck::cast_slice;
 
 use wfinfo::{
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
 };
 
-use image::{ImageBuffer, Rgba};
+use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba, RgbaImage,  Luma};
 
 
 fn save_debug_image(image: &DynamicImage, filename: &str) -> Result<(), Box<dyn Error>> {
@@ -32,31 +31,85 @@ fn save_debug_image(image: &DynamicImage, filename: &str) -> Result<(), Box<dyn 
     Ok(())
 }
 
-fn hdr_to_sdr(image: &ImageBuffer<Rgba<u8>, Vec<u8>>, luminescence: u32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+fn hdr_to_sdr(image: &ImageBuffer<Rgba<f32>, Vec<f32>>, luminescence: u32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
     let mut sdr_image = ImageBuffer::new(image.width(), image.height());
 
     // Normalize luminescence to 0-1 range
     let max_luminescence = 1000.0;
     let lum_factor = (luminescence as f32 / max_luminescence).min(1.0).max(0.1);
 
+    // Calculate the average luminance of the image
+    let mut max_luminance = 0.0f32;
+    for pixel in image.pixels() {
+        let luminance = 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2];
+        max_luminance = max_luminance.max(luminance);
+    }
+
+    // Adjust max_luminance based on the luminescence factor
+    max_luminance *= lum_factor;
+
     for (x, y, pixel) in image.enumerate_pixels() {
-        let r = pixel[0] as f32 / 255.0;
-        let g = pixel[1] as f32 / 255.0;
-        let b = pixel[2] as f32 / 255.0;
+        let r = pixel[0];
+        let g = pixel[1];
+        let b = pixel[2];
 
-        // Modified Reinhard tone mapping with luminescence factor
-        let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        let scale = (1.0 + l * lum_factor) / (1.0 + l);
+        // Apply tone mapping (Reinhard operator)
+        let luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        let scaled_luminance = luminance / max_luminance;
+        let mapped_luminance = scaled_luminance / (1.0 + scaled_luminance);
 
+        // Apply color correction
+        let scale = mapped_luminance / luminance;
         let r_sdr = (r * scale * 255.0).min(255.0) as u8;
         let g_sdr = (g * scale * 255.0).min(255.0) as u8;
         let b_sdr = (b * scale * 255.0).min(255.0) as u8;
 
-        sdr_image.put_pixel(x, y, Rgba([r_sdr, g_sdr, b_sdr, pixel[3]]));
+        // Apply gamma correction
+        let gamma = 1.0 / 2.2;
+        let r_gamma = ((r_sdr as f32 / 255.0).powf(gamma) * 255.0) as u8;
+        let g_gamma = ((g_sdr as f32 / 255.0).powf(gamma) * 255.0) as u8;
+        let b_gamma = ((b_sdr as f32 / 255.0).powf(gamma) * 255.0) as u8;
+
+        sdr_image.put_pixel(x, y, Rgba([r_gamma, g_gamma, b_gamma, (pixel[3] * 255.0) as u8]));
     }
 
     sdr_image
 }
+
+fn preprocess_for_ocr(image: &DynamicImage) -> DynamicImage {
+    let gray_image = image.to_luma8();
+
+    // Apply adaptive thresholding
+    let threshold_image = adaptive_threshold(&gray_image, 11, 2);
+
+    DynamicImage::ImageLuma8(threshold_image)
+}
+
+fn adaptive_threshold(image: &ImageBuffer<Luma<u8>, Vec<u8>>, block_size: u32, c: i32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
+    let mut output = ImageBuffer::new(image.width(), image.height());
+    let half_block = block_size / 2;
+
+    for (x, y, pixel) in image.enumerate_pixels() {
+        let mut sum = 0u32;
+        let mut count = 0u32;
+
+        for i in x.saturating_sub(half_block)..=(x + half_block).min(image.width() - 1) {
+            for j in y.saturating_sub(half_block)..=(y + half_block).min(image.height() - 1) {
+                sum += image.get_pixel(i, j).0[0] as u32;
+                count += 1;
+            }
+        }
+
+        let threshold = (sum / count) as i32 - c;
+        let new_value = if pixel.0[0] as i32 > threshold { 255 } else { 0 };
+        output.put_pixel(x, y, Luma([new_value]));
+    }
+
+    output
+}
+
+
+
 
 fn run_detection(capturer: &dyn Capturable, db: &Database, is_hdr: bool, luminescence: u32, save_debug_images: bool) {
     let frame = capturer.capture_image().unwrap();
@@ -72,20 +125,58 @@ fn run_detection(capturer: &dyn Capturable, db: &Database, is_hdr: bool, lumines
                 .unwrap()
                 .as_secs();
 
-            if let Err(e) = save_debug_image(&DynamicImage::ImageRgba8(frame.clone()), &format!("debug_original_{}.png", timestamp)) {
+            // Save the original HDR frame
+            if let Err(e) = image::save_buffer_with_format(
+                format!("debug_original_{}.exr", timestamp),
+                cast_slice(frame.as_raw()),
+                frame.width(),
+                frame.height(),
+                image::ColorType::Rgba32F,
+                image::ImageFormat::OpenExr,
+            ) {
                 warn!("Failed to save original debug image: {}", e);
             }
 
+            // Save the converted SDR image
             if let Err(e) = save_debug_image(&converted, &format!("debug_converted_{}.png", timestamp)) {
                 warn!("Failed to save converted debug image: {}", e);
             }
         }
 
-        converted
+        // Apply preprocessing only for HDR images
+        let preprocessed = preprocess_for_ocr(&converted);
+
+        if save_debug_images {
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            if let Err(e) = save_debug_image(&preprocessed, &format!("debug_preprocessed_{}.png", timestamp)) {
+                warn!("Failed to save preprocessed debug image: {}", e);
+            }
+        }
+
+        preprocessed
     } else {
-        DynamicImage::ImageRgba8(frame)
+        DynamicImage::ImageRgba8(rgbaf32_to_rgba8(&frame))
     };
-    info!("Converted");
+    info!("Image prepared for OCR");
+
+    fn rgbaf32_to_rgba8(rgba: &ImageBuffer<Rgba<f32>, Vec<f32>>) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let (width, height) = rgba.dimensions();
+    let mut u8_buffer = Vec::with_capacity((width * height * 4) as usize);
+
+    for pixel in rgba.pixels() {
+        u8_buffer.push((pixel[0] * 255.0) as u8);
+        u8_buffer.push((pixel[1] * 255.0) as u8);
+        u8_buffer.push((pixel[2] * 255.0) as u8);
+        u8_buffer.push((pixel[3] * 255.0) as u8);
+    }
+
+    ImageBuffer::from_raw(width, height, u8_buffer).unwrap()
+}
+
+
 
     let text = reward_image_to_reward_names(image, None);
     let text = text.iter().map(|s| normalize_string(s));
@@ -240,14 +331,17 @@ struct Arguments {
 }
 
 trait Capturable {
-    fn capture_image(&self) -> Result<image::RgbaImage, Box<dyn Error>>;
+    fn capture_image(&self) -> Result<image::ImageBuffer<Rgba<f32>, Vec<f32>>, Box<dyn Error>>;
     fn width(&self) -> u32;
     fn height(&self) -> u32;
 }
 
+
 impl Capturable for Window {
-    fn capture_image(&self) -> Result<image::RgbaImage, Box<dyn Error>> {
-        self.capture_image().map_err(|e| Box::new(e) as Box<dyn Error>)
+    fn capture_image(&self) -> Result<ImageBuffer<Rgba<f32>, Vec<f32>>, Box<dyn Error>> {
+        let rgba_image: RgbaImage = self.capture_image()?;
+        let float_image = rgba_to_rgbaf32(&rgba_image);
+        Ok(float_image)
     }
 
     fn width(&self) -> u32 {
@@ -260,8 +354,10 @@ impl Capturable for Window {
 }
 
 impl Capturable for Monitor {
-    fn capture_image(&self) -> Result<image::RgbaImage, Box<dyn Error>> {
-        self.capture_image().map_err(|e| Box::new(e) as Box<dyn Error>)
+    fn capture_image(&self) -> Result<ImageBuffer<Rgba<f32>, Vec<f32>>, Box<dyn Error>> {
+        let rgba_image: RgbaImage = self.capture_image()?;
+        let float_image = rgba_to_rgbaf32(&rgba_image);
+        Ok(float_image)
     }
 
     fn width(&self) -> u32 {
@@ -271,6 +367,20 @@ impl Capturable for Monitor {
     fn height(&self) -> u32 {
         self.height()
     }
+}
+
+fn rgba_to_rgbaf32(rgba: &RgbaImage) -> ImageBuffer<Rgba<f32>, Vec<f32>> {
+    let (width, height) = rgba.dimensions();
+    let mut float_buffer = Vec::with_capacity((width * height * 4) as usize);
+
+    for pixel in rgba.pixels() {
+        float_buffer.push(pixel[0] as f32 / 255.0);
+        float_buffer.push(pixel[1] as f32 / 255.0);
+        float_buffer.push(pixel[2] as f32 / 255.0);
+        float_buffer.push(pixel[3] as f32 / 255.0);
+    }
+
+    ImageBuffer::from_raw(width, height, float_buffer).unwrap()
 }
 
 
