@@ -8,24 +8,84 @@ use std::{
 };
 use std::{path::PathBuf, sync::mpsc};
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use env_logger::{Builder, Env};
 use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
 use image::DynamicImage;
 use log::{debug, error, info, warn};
 use notify::{watcher, RecursiveMode, Watcher};
-use xcap::Window;
+use xcap::{Window, Monitor};
+use std::time::{SystemTime, UNIX_EPOCH};
+use image::ImageFormat;
 
 use wfinfo::{
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
 };
 
-fn run_detection(capturer: &Window, db: &Database) {
+use image::{ImageBuffer, Rgba};
+
+
+fn save_debug_image(image: &DynamicImage, filename: &str) -> Result<(), Box<dyn Error>> {
+    image.save_with_format(filename, ImageFormat::Png)?;
+    info!("Saved debug image: {}", filename);
+    Ok(())
+}
+
+fn hdr_to_sdr(image: &ImageBuffer<Rgba<u8>, Vec<u8>>, luminescence: u32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    let mut sdr_image = ImageBuffer::new(image.width(), image.height());
+
+    // Normalize luminescence to 0-1 range
+    let max_luminescence = 1000.0;
+    let lum_factor = (luminescence as f32 / max_luminescence).min(1.0).max(0.1);
+
+    for (x, y, pixel) in image.enumerate_pixels() {
+        let r = pixel[0] as f32 / 255.0;
+        let g = pixel[1] as f32 / 255.0;
+        let b = pixel[2] as f32 / 255.0;
+
+        // Modified Reinhard tone mapping with luminescence factor
+        let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        let scale = (1.0 + l * lum_factor) / (1.0 + l);
+
+        let r_sdr = (r * scale * 255.0).min(255.0) as u8;
+        let g_sdr = (g * scale * 255.0).min(255.0) as u8;
+        let b_sdr = (b * scale * 255.0).min(255.0) as u8;
+
+        sdr_image.put_pixel(x, y, Rgba([r_sdr, g_sdr, b_sdr, pixel[3]]));
+    }
+
+    sdr_image
+}
+
+fn run_detection(capturer: &dyn Capturable, db: &Database, is_hdr: bool, luminescence: u32, save_debug_images: bool) {
     let frame = capturer.capture_image().unwrap();
     info!("Captured");
-    let image = DynamicImage::ImageRgba8(frame);
-    info!("Converted");
+
+    let image = if is_hdr {
+        info!("Converting HDR to SDR");
+        let converted = DynamicImage::ImageRgba8(hdr_to_sdr(&frame, luminescence));
+
+        if save_debug_images {
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            if let Err(e) = save_debug_image(&DynamicImage::ImageRgba8(frame.clone()), &format!("debug_original_{}.png", timestamp)) {
+                warn!("Failed to save original debug image: {}", e);
+            }
+
+            if let Err(e) = save_debug_image(&converted, &format!("debug_converted_{}.png", timestamp)) {
+                warn!("Failed to save converted debug image: {}", e);
+            }
+        }
+
+        converted
+    } else {
+        DynamicImage::ImageRgba8(frame)
+    };
+
     let text = reward_image_to_reward_names(image, None);
     let text = text.iter().map(|s| normalize_string(s));
     debug!("{:#?}", text);
@@ -162,13 +222,61 @@ struct Arguments {
     /// some systems may require the window name to be specified (e.g. when using gamescope)
     #[arg(short, long, default_value = "Warframe")]
     window_name: String,
+    /// Monitor number to capture (0-based index)
+    ///
+    /// If specified, this will be used instead of the window name
+    #[arg(short, long)]
+    monitor: Option<usize>,
+    /// Specify if the monitor is in HDR mode
+    #[arg(long)]
+    hdr: bool,
+    /// Luminescence level for HDR (100-1000 nits)
+    #[arg(long, default_value = "300")]
+    luminescence: u32,
+    /// Save debug images when HDR conversion is applied
+    #[arg(long)]
+    save_debug_images: bool,
 }
+
+trait Capturable {
+    fn capture_image(&self) -> Result<image::RgbaImage, Box<dyn Error>>;
+    fn width(&self) -> u32;
+    fn height(&self) -> u32;
+}
+
+impl Capturable for Window {
+    fn capture_image(&self) -> Result<image::RgbaImage, Box<dyn Error>> {
+        self.capture_image().map_err(|e| Box::new(e) as Box<dyn Error>)
+    }
+
+    fn width(&self) -> u32 {
+        self.width()
+    }
+
+    fn height(&self) -> u32 {
+        self.height()
+    }
+}
+
+impl Capturable for Monitor {
+    fn capture_image(&self) -> Result<image::RgbaImage, Box<dyn Error>> {
+        self.capture_image().map_err(|e| Box::new(e) as Box<dyn Error>)
+    }
+
+    fn width(&self) -> u32 {
+        self.width()
+    }
+
+    fn height(&self) -> u32 {
+        self.height()
+    }
+}
+
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments = Arguments::parse();
     let default_log_path = PathBuf::from_str(&std::env::var("HOME").unwrap()).unwrap().join(PathBuf::from_str(".local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")?);
     let log_path = arguments.game_log_file_path.unwrap_or(default_log_path);
-    let window_name = arguments.window_name;
     let env = Env::default()
         .filter_or("WFINFO_LOG", "info")
         .write_style_or("WFINFO_STYLE", "always");
@@ -179,16 +287,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         .format_target(false)
         .init();
 
-    let windows = Window::all()?;
     let db = Database::load_from_file(None, None);
-    let Some(warframe_window) = windows.iter().find(|x| x.title() == window_name) else {
-        return Err("Warframe window not found".into());
+
+    let capturer: Box<dyn Capturable> = if let Some(monitor_index) = arguments.monitor {
+        let monitors = Monitor::all()?;
+        if monitor_index >= monitors.len() {
+            return Err(format!("Invalid monitor index: {}", monitor_index).into());
+        }
+        Box::new(monitors[monitor_index].clone())
+    } else {
+        let windows = Window::all()?;
+        let Some(warframe_window) = windows.iter().find(|x| x.title() == arguments.window_name) else {
+            return Err("Warframe window not found".into());
+        };
+        Box::new(warframe_window.clone())
     };
 
     debug!(
         "Capture source resolution: {:?}x{:?}",
-        warframe_window.width(),
-        warframe_window.height()
+        capturer.width(),
+        capturer.height()
     );
 
     info!("Loaded database");
@@ -200,7 +318,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     while let Ok(()) = event_receiver.recv() {
         info!("Capturing");
-        run_detection(warframe_window, &db);
+        run_detection(&*capturer, &db, arguments.hdr, arguments.luminescence, arguments.save_debug_images);
     }
 
     drop(OCR.lock().unwrap().take());
