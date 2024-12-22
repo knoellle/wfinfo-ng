@@ -59,6 +59,13 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
     for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
             match arguments.info_mode {
+                InfoMode::Minimal => info!(
+                    "{}\n\t{}\t{}\t{}",
+                    item.drop_name,
+                    item.platinum,
+                    item.ducats as f32 / 10.0,
+                    if Some(index) == best { "<----" } else { "" }
+                ),
                 InfoMode::Combined => info!(
                     "Name: {}\n\tPlatinum: {}\tDucats: {}\t{}",
                     item.drop_name,
@@ -195,9 +202,10 @@ struct Arguments {
     best_item_mode: BestItemMode,
     /// Info mode
     ///
-    /// - `combined`: Combined (Shows platinum and ducats)
+    /// - `minimal`: Minimal (Shows only the name, platinum, and ducats)
+    /// - `combined`: Combined (Shows platinum and ducats, with labels)
     /// - `all`: All (Also shows today and yesterday's volumes)
-    #[arg(short, long, default_value = "combined")]
+    #[arg(short, long, default_value = "minimal")]
     #[clap(verbatim_doc_comment)]
     info_mode: InfoMode,
 }
