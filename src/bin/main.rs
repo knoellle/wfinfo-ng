@@ -17,10 +17,10 @@ use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
 
 use wfinfo::{
+    config::BestItemMode,
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
     utils::fetch_prices_and_items,
-    config::BestItemMode,
 };
 
 fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
@@ -37,13 +37,12 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
     let best = items
         .iter()
         .map(|item| {
-            item.map(|item| {
-                match arguments.best_item_mode {
-                    BestItemMode::Default => item.platinum
-                        .max(item.ducats as f32 / 10.0 + item.platinum / 100.0),
-                    BestItemMode::Platinum => item.platinum,
-                    BestItemMode::Ducats => item.ducats as f32 / 10.0,
-                }
+            item.map(|item| match arguments.best_item_mode {
+                BestItemMode::Default => item
+                    .platinum
+                    .max(item.ducats as f32 / 10.0 + item.platinum / 100.0),
+                BestItemMode::Platinum => item.platinum,
+                BestItemMode::Ducats => item.ducats as f32 / 10.0,
             })
             .unwrap_or(0.0)
         })
@@ -180,7 +179,10 @@ struct Arguments {
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments = Arguments::parse();
     let default_log_path = PathBuf::from_str(&std::env::var("HOME").unwrap()).unwrap().join(PathBuf::from_str(".local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")?);
-    let log_path = arguments.game_log_file_path.as_ref().unwrap_or(&default_log_path);
+    let log_path = arguments
+        .game_log_file_path
+        .as_ref()
+        .unwrap_or(&default_log_path);
     let window_name = arguments.window_name.clone();
     let env = Env::default()
         .filter_or("WFINFO_LOG", "info")
