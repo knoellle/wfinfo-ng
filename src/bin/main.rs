@@ -48,7 +48,7 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
                     let sales_volume = (item.yesterday_vol.saturating_sub(item.today_vol)) as f32;
                     // Calculate volatility: sales_volume * platinum
                     sales_volume * item.platinum
-                },
+                }
             })
             .unwrap_or(0.0)
         })
