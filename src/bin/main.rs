@@ -60,7 +60,7 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
         if let Some(item) = item {
             match arguments.info_mode {
                 InfoMode::Combined => info!(
-                    "Name: {}\n\tPlatinum: {}\tDucats: {}\tBest: {}",
+                    "Name: {}\n\tPlatinum: {}\tDucats: {}\t{}",
                     item.drop_name,
                     item.platinum,
                     item.ducats as f32 / 10.0,
