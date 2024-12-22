@@ -67,20 +67,20 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
                     if Some(index) == best { "<----" } else { "" }
                 ),
                 InfoMode::Combined => info!(
-                    "Name: {}\n\tPlatinum: {}\tDucats: {}\t{}",
+                    "{}\n\tPlatinum: {}\tDucats: {}\t{}",
                     item.drop_name,
                     item.platinum,
                     item.ducats as f32 / 10.0,
                     if Some(index) == best { "<----" } else { "" }
                 ),
                 InfoMode::All => info!(
-                    "Name: {}\n\tPlatinum: {}\tDucats: {}\t{}\nYesterday Vol: {}\tToday Vol: {}",
+                    "{}\n\tPlatinum: {}\tDucats: {}\tYesterday Vol: {}\tToday Vol: {}\t{}",
                     item.drop_name,
                     item.platinum,
                     item.ducats as f32 / 10.0,
-                    if Some(index) == best { "<----" } else { "" },
                     item.yesterday_vol,
-                    item.today_vol
+                    item.today_vol,
+                    if Some(index) == best { "<----" } else { "" }
                 ),
             }
         } else {
