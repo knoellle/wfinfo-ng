@@ -193,7 +193,7 @@ struct Arguments {
     /// Info mode
     ///
     /// - `default`: Default (Shows platinum and ducats)
-    /// - `all`: All (Shows today and yesterday's volumes)
+    /// - `all`: All (Also shows today and yesterday's volumes)
     #[arg(short, long, default_value = "default")]
     #[clap(verbatim_doc_comment)]
     info_mode: InfoMode,
