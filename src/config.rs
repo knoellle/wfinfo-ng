@@ -3,7 +3,7 @@ use clap::ValueEnum;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
 pub enum BestItemMode {
     #[default]
-    Default,
+    Combined,
     Platinum,
     Ducats,
     Volatility,
@@ -12,6 +12,6 @@ pub enum BestItemMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
 pub enum InfoMode {
     #[default]
-    Default,
+    Combined,
     All,
 }

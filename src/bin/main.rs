@@ -38,14 +38,17 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
         .iter()
         .map(|item| {
             item.map(|item| match arguments.best_item_mode {
-                BestItemMode::Default => item
+                BestItemMode::Combined => item
                     .platinum
                     .max(item.ducats as f32 / 10.0 + item.platinum / 100.0),
                 BestItemMode::Platinum => item.platinum,
                 BestItemMode::Ducats => item.ducats as f32 / 10.0,
                 BestItemMode::Volatility => {
-                    (item.yesterday_vol + item.today_vol) as f32 * item.platinum
-                }
+                    // Calculate sales volume: max(volume_yesterday - volume_today, 0)
+                    let sales_volume = (item.yesterday_vol.saturating_sub(item.today_vol)) as f32;
+                    // Calculate volatility: sales_volume * platinum
+                    sales_volume * item.platinum
+                },
             })
             .unwrap_or(0.0)
         })
@@ -56,7 +59,7 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
     for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
             match arguments.info_mode {
-                InfoMode::Default => info!(
+                InfoMode::Combined => info!(
                     "Name: {}\n\tPlatinum: {}\tDucats: {}\tBest: {}",
                     item.drop_name,
                     item.platinum,
@@ -183,18 +186,18 @@ struct Arguments {
     window_name: String,
     /// Best item mode
     ///
-    /// - `default`: Platinum + Ducats (Platinum / 100 + Ducats / 10)
+    /// - `combined`: Platinum + Ducats (Platinum / 100 + Ducats / 10)
     /// - `platinum`: Platinum
     /// - `ducats`: Ducats
-    /// - `volatility`: Volatility (Platinum * (Yesterday Vol + Today Vol))
-    #[arg(short, long, default_value = "default")]
+    /// - `volatility`: Volatility (Max(volume_yesterday - volume_today, 0) * Platinum)
+    #[arg(short, long, default_value = "combined")]
     #[clap(verbatim_doc_comment)]
     best_item_mode: BestItemMode,
     /// Info mode
     ///
-    /// - `default`: Default (Shows platinum and ducats)
+    /// - `combined`: Combined (Shows platinum and ducats)
     /// - `all`: All (Also shows today and yesterday's volumes)
-    #[arg(short, long, default_value = "default")]
+    #[arg(short, long, default_value = "combined")]
     #[clap(verbatim_doc_comment)]
     info_mode: InfoMode,
 }
