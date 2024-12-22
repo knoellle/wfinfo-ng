@@ -188,12 +188,14 @@ struct Arguments {
     /// - `ducats`: Ducats
     /// - `volatility`: Volatility (Platinum * (Yesterday Vol + Today Vol))
     #[arg(short, long, default_value = "default")]
+    #[clap(verbatim_doc_comment)]
     best_item_mode: BestItemMode,
     /// Info mode
     ///
-    /// - `default`: Default
-    /// - `all`: All
+    /// - `default`: Default (Shows platinum and ducats)
+    /// - `all`: All (Shows today and yesterday's volumes)
     #[arg(short, long, default_value = "default")]
+    #[clap(verbatim_doc_comment)]
     info_mode: InfoMode,
 }
 
