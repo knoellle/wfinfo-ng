@@ -6,6 +6,7 @@ pub enum BestItemMode {
     Default,
     Platinum,
     Ducats,
+    Volatility,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]

@@ -43,6 +43,7 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
                     .max(item.ducats as f32 / 10.0 + item.platinum / 100.0),
                 BestItemMode::Platinum => item.platinum,
                 BestItemMode::Ducats => item.ducats as f32 / 10.0,
+                BestItemMode::Volatility => (item.yesterday_vol + item.today_vol) as f32 * item.platinum,
             })
             .unwrap_or(0.0)
         })
@@ -180,9 +181,10 @@ struct Arguments {
     window_name: String,
     /// Best item mode
     ///
-    /// - `default`: Platinum + Ducats
+    /// - `default`: Platinum + Ducats (Platinum / 100 + Ducats / 10)
     /// - `platinum`: Platinum
     /// - `ducats`: Ducats
+    /// - `volatility`: Volatility (Platinum * (Yesterday Vol + Today Vol))
     #[arg(short, long, default_value = "default")]
     best_item_mode: BestItemMode,
     /// Info mode
