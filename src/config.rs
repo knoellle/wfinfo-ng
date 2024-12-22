@@ -7,3 +7,10 @@ pub enum BestItemMode {
     Platinum,
     Ducats,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
+pub enum InfoMode {
+    #[default]
+    Default,
+    All,
+}

@@ -24,6 +24,8 @@ pub struct Item {
     pub drop_name: String,
     pub platinum: f32,
     pub ducats: usize,
+    pub yesterday_vol: usize,
+    pub today_vol: usize,
 }
 
 impl Database {
@@ -32,8 +34,15 @@ impl Database {
         let text = read_to_string(prices.unwrap_or_else(|| Path::new("prices.json"))).unwrap();
         let price_list: Vec<PriceItem> = serde_json::from_str(&text).unwrap();
         let price_table: HashMap<String, f32> = price_list
+            .clone()
             .into_iter()
             .map(|item| (item.name, item.custom_avg))
+            .collect();
+
+        let price_table_vol: HashMap<String, (usize, usize)> = price_list
+            .clone()
+            .into_iter()
+            .map(|item| (item.name, (item.yesterday_vol, item.today_vol)))
             .collect();
 
         let text =
@@ -68,14 +77,25 @@ impl Database {
                         };
                         let platinum = *match price_table
                             .get(name)
-                            .or_else(|| price_table.get(&format!("{name} Blueprint")))
-                        {
+                            .or_else(|| price_table.get(&format!("{name} Blueprint"))) {
                             Some(plat) => plat,
                             None => {
                                 println!("Failed to find price for item: {name}");
                                 return None;
                             }
                         };
+
+                        let (yesterday_vol, today_vol) = match price_table_vol
+                            .get(name)
+                            .or_else(|| price_table_vol.get(&format!("{name} Blueprint")))
+                        {
+                            Some(&vol) => vol,
+                            None => {
+                                println!("Failed to find volume for item: {name}");
+                                return None;
+                            }
+                        };
+
                         let ducats = ducat_item.ducats;
 
                         Some(Item {
@@ -83,6 +103,8 @@ impl Database {
                             drop_name,
                             platinum,
                             ducats,
+                            yesterday_vol,
+                            today_vol,
                         })
                     })
             })
@@ -91,6 +113,8 @@ impl Database {
                 drop_name: name.to_owned(),
                 platinum: 0.0,
                 ducats: 0,
+                yesterday_vol: 0,
+                today_vol: 0,
             }))
             .collect();
 

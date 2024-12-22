@@ -17,7 +17,7 @@ use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
 
 use wfinfo::{
-    config::BestItemMode,
+    config::{BestItemMode, InfoMode},
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
     utils::fetch_prices_and_items,
@@ -52,13 +52,24 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
 
     for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
-            info!(
-                "Name: {}\n\tPlatinum: {}\tDucats: {}\tBest: {}",
-                item.drop_name,
-                item.platinum,
-                item.ducats as f32 / 10.0,
-                if Some(index) == best { "<----" } else { "" }
-            );
+            match arguments.info_mode {
+                InfoMode::Default => info!(
+                    "Name: {}\n\tPlatinum: {}\tDucats: {}\tBest: {}",
+                    item.drop_name,
+                    item.platinum,
+                    item.ducats as f32 / 10.0,
+                    if Some(index) == best { "<----" } else { "" }
+                ),
+                InfoMode::All => info!(
+                    "Name: {}\n\tPlatinum: {}\tDucats: {}\t{}\nYesterday Vol: {}\tToday Vol: {}",
+                    item.drop_name,
+                    item.platinum,
+                    item.ducats as f32 / 10.0,
+                    if Some(index) == best { "<----" } else { "" },
+                    item.yesterday_vol,
+                    item.today_vol
+                ),
+            }
         } else {
             warn!("Unknown item\n\tUnknown");
         }
@@ -174,6 +185,12 @@ struct Arguments {
     /// - `ducats`: Ducats
     #[arg(short, long, default_value = "default")]
     best_item_mode: BestItemMode,
+    /// Info mode
+    ///
+    /// - `default`: Default
+    /// - `all`: All
+    #[arg(short, long, default_value = "default")]
+    info_mode: InfoMode,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
