@@ -17,7 +17,7 @@ use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
 
 use wfinfo::{
-    config::{BestItemMode, InfoMode},
+    config::{BestItemMode, InfoDisplayMode},
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
     utils::fetch_prices_and_items,
@@ -58,22 +58,22 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
 
     for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
-            match arguments.info_mode {
-                InfoMode::Minimal => info!(
+            match arguments.info_display_mode {
+                InfoDisplayMode::Minimal => info!(
                     "{}\n\t{}\t{}\t{}",
                     item.drop_name,
                     item.platinum,
                     item.ducats as f32 / 10.0,
                     if Some(index) == best { "<----" } else { "" }
                 ),
-                InfoMode::Combined => info!(
+                InfoDisplayMode::Combined => info!(
                     "{}\n\tPlatinum: {}\tDucats: {}\t{}",
                     item.drop_name,
                     item.platinum,
                     item.ducats as f32 / 10.0,
                     if Some(index) == best { "<----" } else { "" }
                 ),
-                InfoMode::All => info!(
+                InfoDisplayMode::All => info!(
                     "{}\n\tPlatinum: {}\tDucats: {}\tYesterday Vol: {}\tToday Vol: {}\t{}",
                     item.drop_name,
                     item.platinum,
@@ -200,14 +200,14 @@ struct Arguments {
     #[arg(short, long, default_value = "combined")]
     #[clap(verbatim_doc_comment)]
     best_item_mode: BestItemMode,
-    /// Info mode
+    /// Info display mode
     ///
     /// - `minimal`: Minimal (Shows only the name, platinum, and ducats)
     /// - `combined`: Combined (Shows platinum and ducats, with labels)
     /// - `all`: All (Also shows today and yesterday's volumes)
     #[arg(short, long, default_value = "minimal")]
     #[clap(verbatim_doc_comment)]
-    info_mode: InfoMode,
+    info_display_mode: InfoDisplayMode,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
