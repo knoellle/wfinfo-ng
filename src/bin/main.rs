@@ -43,7 +43,9 @@ fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
                     .max(item.ducats as f32 / 10.0 + item.platinum / 100.0),
                 BestItemMode::Platinum => item.platinum,
                 BestItemMode::Ducats => item.ducats as f32 / 10.0,
-                BestItemMode::Volatility => (item.yesterday_vol + item.today_vol) as f32 * item.platinum,
+                BestItemMode::Volatility => {
+                    (item.yesterday_vol + item.today_vol) as f32 * item.platinum
+                }
             })
             .unwrap_or(0.0)
         })
