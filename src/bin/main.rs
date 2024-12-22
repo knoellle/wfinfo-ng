@@ -20,9 +20,10 @@ use wfinfo::{
     database::Database,
     ocr::{normalize_string, reward_image_to_reward_names, OCR},
     utils::fetch_prices_and_items,
+    config::BestItemMode,
 };
 
-fn run_detection(capturer: &Window, db: &Database) {
+fn run_detection(capturer: &Window, db: &Database, arguments: &Arguments) {
     let frame = capturer.capture_image().unwrap();
     info!("Captured");
     let image = DynamicImage::ImageRgba8(frame);
@@ -37,8 +38,12 @@ fn run_detection(capturer: &Window, db: &Database) {
         .iter()
         .map(|item| {
             item.map(|item| {
-                item.platinum
-                    .max(item.ducats as f32 / 10.0 + item.platinum / 100.0)
+                match arguments.best_item_mode {
+                    BestItemMode::Default => item.platinum
+                        .max(item.ducats as f32 / 10.0 + item.platinum / 100.0),
+                    BestItemMode::Platinum => item.platinum,
+                    BestItemMode::Ducats => item.ducats as f32 / 10.0,
+                }
             })
             .unwrap_or(0.0)
         })
@@ -49,7 +54,7 @@ fn run_detection(capturer: &Window, db: &Database) {
     for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
             info!(
-                "{}\n\t{}\t{}\t{}",
+                "Name: {}\n\tPlatinum: {}\tDucats: {}\tBest: {}",
                 item.drop_name,
                 item.platinum,
                 item.ducats as f32 / 10.0,
@@ -163,13 +168,20 @@ struct Arguments {
     /// some systems may require the window name to be specified (e.g. when using gamescope)
     #[arg(short, long, default_value = "Warframe")]
     window_name: String,
+    /// Best item mode
+    ///
+    /// - `default`: Platinum + Ducats
+    /// - `platinum`: Platinum
+    /// - `ducats`: Ducats
+    #[arg(short, long, default_value = "default")]
+    best_item_mode: BestItemMode,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let arguments = Arguments::parse();
     let default_log_path = PathBuf::from_str(&std::env::var("HOME").unwrap()).unwrap().join(PathBuf::from_str(".local/share/Steam/steamapps/compatdata/230410/pfx/drive_c/users/steamuser/AppData/Local/Warframe/EE.log")?);
-    let log_path = arguments.game_log_file_path.unwrap_or(default_log_path);
-    let window_name = arguments.window_name;
+    let log_path = arguments.game_log_file_path.as_ref().unwrap_or(&default_log_path);
+    let window_name = arguments.window_name.clone();
     let env = Env::default()
         .filter_or("WFINFO_LOG", "info")
         .write_style_or("WFINFO_STYLE", "always");
@@ -198,12 +210,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (event_sender, event_receiver) = channel();
 
-    log_watcher(log_path, event_sender.clone());
+    log_watcher(log_path.clone(), event_sender.clone());
     hotkey_watcher("F12".parse()?, event_sender);
 
     while let Ok(()) = event_receiver.recv() {
         info!("Capturing");
-        run_detection(warframe_window, &db);
+        run_detection(warframe_window, &db, &arguments);
     }
 
     drop(OCR.lock().unwrap().take());
