@@ -77,7 +77,8 @@ impl Database {
                         };
                         let platinum = *match price_table
                             .get(name)
-                            .or_else(|| price_table.get(&format!("{name} Blueprint"))) {
+                            .or_else(|| price_table.get(&format!("{name} Blueprint")))
+                        {
                             Some(plat) => plat,
                             None => {
                                 println!("Failed to find price for item: {name}");
