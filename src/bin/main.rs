@@ -245,7 +245,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let (prices, items) = fetch_prices_and_items()?;
-    let db = Database::load_from_file(Some(&prices), Some(&items), Some(arguments.forma_multiplier));
+    let db = Database::load_from_file(
+        Some(&prices),
+        Some(&items),
+        Some(arguments.forma_platinum_multiplier),
+    );
 
     info!("Loaded database");
 
