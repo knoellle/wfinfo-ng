@@ -210,9 +210,19 @@ struct Arguments {
     info_display_mode: InfoDisplayMode,
     /// Forma platinum multiplier
     ///
-    /// The default is 1.0
+    /// The multiplier to use for Forma's platinum value
     #[arg(short, long, default_value = "1.0")]
     forma_platinum_multiplier: f32,
+    /// Forma platinum value
+    ///
+    /// The base platinum value for Forma
+    #[arg(short = 'v', long, default_value = "11.666667")] // 35.0/3.0
+    forma_platinum_value: f32,
+    /// Detection hotkey
+    ///
+    /// The hotkey to use for detection
+    #[arg(short, long, default_value = "F12")]
+    detection_hotkey: HotKey,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -249,6 +259,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(&prices),
         Some(&items),
         Some(arguments.forma_platinum_multiplier),
+        Some(arguments.forma_platinum_value),
     );
 
     info!("Loaded database");
@@ -256,7 +267,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (event_sender, event_receiver) = channel();
 
     log_watcher(log_path.clone(), event_sender.clone());
-    hotkey_watcher("F12".parse()?, event_sender);
+    hotkey_watcher(arguments.detection_hotkey, event_sender);
 
     while let Ok(()) = event_receiver.recv() {
         info!("Capturing");
@@ -291,7 +302,7 @@ mod test {
         let text = reward_image_to_reward_names(image, None);
         let text = text.iter().map(|s| normalize_string(s));
         println!("{:#?}", text);
-        let db = Database::load_from_file(None, None, Some(1.0));
+        let db = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
         let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
         println!("{:#?}", items);
 
@@ -327,7 +338,7 @@ mod test {
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
             println!("{:#?}", text);
 
-            let db = Database::load_from_file(None, None, Some(1.0));
+            let db = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
             let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
             println!("{:#?}", items);
             println!("{}", filename);
@@ -362,7 +373,7 @@ mod test {
                 let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
                 println!("{:#?}", text);
 
-                let db = Database::load_from_file(None, None, Some(1.0));
+                let db = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
                 let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
                 println!("{:#?}", items);
                 println!("{}", filename);

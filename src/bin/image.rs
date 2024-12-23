@@ -21,7 +21,7 @@ fn main() {
         let text: Vec<_> = detections.iter().map(|s| normalize_string(s)).collect();
         println!("{:#?}", text);
 
-        let db = Database::load_from_file(None, None, Some(1.0));
+        let db = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
         let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
         for item in items.iter() {
             if let Some(item) = item {

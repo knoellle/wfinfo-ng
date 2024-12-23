@@ -78,7 +78,7 @@ fn spawn_ocr_thread(
     let images = images.to_owned();
 
     thread::spawn(move || {
-        let database = Database::load_from_file(None, None, Some(1.0));
+        let database = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
         loop {
             let (mut index, mut last_request): (usize, HslRange<f32>) =
                 request_receiver.recv().unwrap();
