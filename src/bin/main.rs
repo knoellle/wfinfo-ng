@@ -208,6 +208,11 @@ struct Arguments {
     #[arg(short, long, default_value = "minimal")]
     #[clap(verbatim_doc_comment)]
     info_display_mode: InfoDisplayMode,
+    /// Forma platinum multiplier
+    ///
+    /// The default is 1.0
+    #[arg(short, long, default_value = "1.0")]
+    forma_platinum_multiplier: f32,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -240,7 +245,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let (prices, items) = fetch_prices_and_items()?;
-    let db = Database::load_from_file(Some(&prices), Some(&items));
+    let db = Database::load_from_file(Some(&prices), Some(&items), Some(arguments.forma_multiplier));
 
     info!("Loaded database");
 
@@ -282,7 +287,7 @@ mod test {
         let text = reward_image_to_reward_names(image, None);
         let text = text.iter().map(|s| normalize_string(s));
         println!("{:#?}", text);
-        let db = Database::load_from_file(None, None);
+        let db = Database::load_from_file(None, None, Some(1.0));
         let items: Vec<_> = text.map(|s| db.find_item(&s, None)).collect();
         println!("{:#?}", items);
 
@@ -318,7 +323,7 @@ mod test {
             let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
             println!("{:#?}", text);
 
-            let db = Database::load_from_file(None, None);
+            let db = Database::load_from_file(None, None, Some(1.0));
             let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
             println!("{:#?}", items);
             println!("{}", filename);
@@ -353,7 +358,7 @@ mod test {
                 let text: Vec<_> = text.iter().map(|s| normalize_string(s)).collect();
                 println!("{:#?}", text);
 
-                let db = Database::load_from_file(None, None);
+                let db = Database::load_from_file(None, None, Some(1.0));
                 let items: Vec<_> = text.iter().map(|s| db.find_item(s, None)).collect();
                 println!("{:#?}", items);
                 println!("{}", filename);
