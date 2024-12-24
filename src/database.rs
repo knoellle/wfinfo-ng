@@ -125,7 +125,8 @@ impl Database {
             .collect();
 
         if let Some(item) = items.iter_mut().find(|item| item.name == "Forma Blueprint") {
-            item.platinum = forma_multiplier.unwrap_or(1.0) * (forma_platinum_value.unwrap_or(35.0 / 3.0));
+            item.platinum =
+                forma_multiplier.unwrap_or(1.0) * (forma_platinum_value.unwrap_or(35.0 / 3.0));
         };
 
         let relics = filtered_items.relics;
@@ -284,12 +285,12 @@ mod test {
 
     #[test]
     pub fn can_load_database() {
-        Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
+        Database::load_from_file(None, None, Some(1.0), Some(35.0 / 3.0));
     }
 
     #[test]
     pub fn can_find_items() {
-        let db = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
+        let db = Database::load_from_file(None, None, Some(1.0), Some(35.0 / 3.0));
 
         let item = db
             .find_item("TitaniaPrimeBlueprint", Some(0))
@@ -304,7 +305,7 @@ mod test {
 
     #[test]
     pub fn can_find_fuzzy_items() {
-        let db = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
+        let db = Database::load_from_file(None, None, Some(1.0), Some(35.0 / 3.0));
 
         let item = db
             .find_item("Akstlett Prlme Recver", None)
@@ -324,7 +325,7 @@ mod test {
 
     #[test]
     fn validate_shared_relic_values() {
-        let database = Database::load_from_file(None, None, Some(1.0), Some(35.0/3.0));
+        let database = Database::load_from_file(None, None, Some(1.0), Some(35.0 / 3.0));
 
         for (name, relic) in database.relics.lith.iter() {
             println!("{} {:#?}", name, relic);
