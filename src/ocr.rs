@@ -4,16 +4,179 @@ use std::f32::consts::PI;
 use std::{collections::HashMap, sync::Mutex};
 use tesseract::Tesseract;
 
+use image::imageops::colorops;
 use image::{DynamicImage, GenericImageView, Pixel, Rgb};
 use log::debug;
 
 use crate::theme::Theme;
 
+// Constants for reward screen dimensions in pixels at 1080p resolution
 const PIXEL_REWARD_WIDTH: f32 = 968.0;
 const PIXEL_REWARD_HEIGHT: f32 = 235.0;
 const PIXEL_REWARD_YDISPLAY: f32 = 316.0;
 const PIXEL_REWARD_LINE_HEIGHT: f32 = 48.0;
 
+/// Represents a selected region on the screen
+pub struct Selection {
+    pub x: i32,      // Absolute X coordinate
+    pub y: i32,      // Absolute Y coordinate
+    pub width: i32,  // Width of selection
+    pub height: i32, // Height of selection
+}
+
+/// Converts raw slop output (WxH+X+Y format) into a Selection struct
+/// Example input: "100x200+300+400" -> Selection of 100x200 at (300,400)
+pub fn slop_to_selection(slop_output: &str) -> Option<Selection> {
+    // Parse the WxH+X+Y format, trimming any whitespace/newlines
+    let (dimensions, coordinates) = slop_output.trim().split_once('+')?;
+    let (width, height) = dimensions.split_once('x')?;
+    let (x, y) = coordinates.split_once('+')?;
+
+    let x = x.parse().ok()?;
+    let y = y.parse().ok()?;
+    let width = width.parse().ok()?;
+    let height = height.parse().ok()?;
+
+    debug!("Selection: {}x{} at {},{}", width, height, x, y);
+    Some(Selection {
+        x,
+        y,
+        width,
+        height,
+    })
+}
+
+/// Extracts a part of an image and enhances it for OCR
+///
+/// # Arguments
+/// * `image` - Source image to extract from
+/// * `sel_size` - (width, height) of the selection
+/// * `sel_pos` - (x, y) coordinates relative to the image
+/// * `brightness` - Brightness adjustment (-255 to 255)
+/// * `contrast` - Contrast adjustment (0.0 to 10.0)
+pub fn extract_part(
+    image: &DynamicImage,
+    sel_size: (i32, i32),
+    sel_pos: (i32, i32),
+    brightness: i32,
+    contrast: f32,
+) -> DynamicImage {
+    debug!("Processing image {}x{}", image.width(), image.height());
+
+    // Convert coordinates and ensure they're within bounds
+    let x = sel_pos.0.max(0) as u32;
+    let y = sel_pos.1.max(0) as u32;
+    let width = sel_size.0.max(0) as u32;
+    let height = sel_size.1.max(0) as u32;
+
+    let width = width.min(image.width() - x);
+    let height = height.min(image.height() - y);
+
+    debug!(
+        "Cropping region: x={}, y={}, w={}, h={}",
+        x, y, width, height
+    );
+    let cropped = image.crop_imm(x, y, width, height);
+
+    // Two-step image enhancement for better OCR:
+    // 1. Brighten to make text more visible
+    // 2. Increase contrast to separate text from background
+    let rgb = cropped.into_rgb8();
+    let brightened = colorops::brighten(&rgb, brightness);
+    let enhanced = colorops::contrast(&brightened, contrast);
+    let enhanced = DynamicImage::ImageRgb8(enhanced);
+
+    // Save debug image for troubleshooting
+    if let Err(e) = enhanced.save("debug_cropped.png") {
+        debug!("Failed to save debug image: {}", e);
+    }
+
+    enhanced
+}
+
+/// Performs OCR on an image using Tesseract
+///
+/// # Arguments
+/// * `tesseract` - Mutable reference to the Tesseract instance
+/// * `image` - Image to perform OCR on
+pub fn image_to_string(tesseract: &mut Option<Tesseract>, image: &DynamicImage) -> String {
+    debug!("Running OCR on {}x{} image", image.width(), image.height());
+    let mut ocr = tesseract.take().unwrap();
+
+    // Convert image to format required by Tesseract
+    let buffer = image.as_flat_samples_u8().unwrap();
+    ocr = ocr
+        .set_frame(
+            buffer.samples,
+            image.width() as i32,
+            image.height() as i32,
+            3,                        // RGB format (3 channels)
+            3 * image.width() as i32, // Bytes per row (RGB * width)
+        )
+        .expect("Failed to set image");
+
+    let result = ocr.get_text().expect("Failed to get text");
+    debug!("OCR result: {}", result.trim());
+    tesseract.replace(ocr);
+
+    result
+}
+
+/// Parameters for OCR selection processing
+pub struct SelectionParams {
+    pub abs_x: i32,
+    pub abs_y: i32,
+    pub width: i32,
+    pub height: i32,
+    pub monitor_x: i32,
+    pub monitor_y: i32,
+    pub brightness: i32,
+    pub contrast: f32,
+}
+
+/// Converts absolute screen coordinates to image-relative coordinates and performs OCR
+///
+/// # Arguments
+/// * `image` - Source image
+/// * `params` - Selection parameters including coordinates, dimensions, and OCR settings
+pub fn selection_to_part_name(image: DynamicImage, params: SelectionParams) -> Option<String> {
+    // Convert absolute screen coordinates to image-relative coordinates
+    let x = params.abs_x - params.monitor_x;
+    let y = params.abs_y - params.monitor_y;
+    debug!(
+        "Processing selection: {}x{} at {},{}",
+        params.width, params.height, x, y
+    );
+
+    let text = part_image_to_part_name(
+        image,
+        None,
+        (params.width, params.height),
+        (x, y),
+        params.brightness,
+        params.contrast,
+    );
+    if text.trim().is_empty() {
+        debug!("No text detected in selection");
+        return None;
+    }
+
+    Some(text)
+}
+
+/// Removes all non-ASCII-alphabetic characters from a string
+/// Used to normalize item names for database lookup
+pub fn normalize_string(string: &str) -> String {
+    string.replace(|c: char| !c.is_ascii_alphabetic(), "")
+}
+
+/// Detects the theme of a reward screen by analyzing pixel colors
+///
+/// This function works by:
+/// 1. Calculating screen scaling based on resolution
+/// 2. Sampling pixels in the expected reward area
+/// 3. Comparing colors to known theme colors
+/// 4. Returning the most prevalent theme
 pub fn detect_theme(image: &DynamicImage) -> Theme {
     let screen_scaling = if image.width() * 9 > image.height() * 16 {
         image.height() as f32 / 1080.0
@@ -59,6 +222,14 @@ pub fn detect_theme(image: &DynamicImage) -> Theme {
         .to_owned()
 }
 
+/// Extracts individual reward parts from a reward screen image
+///
+/// This function:
+/// 1. Calculates screen scaling to handle different resolutions
+/// 2. Crops the image to the reward area
+/// 3. Analyzes pixel rows to find text regions
+/// 4. Uses scaling detection to handle UI size variations
+/// 5. Returns a vector of cropped images, one for each reward
 pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
     image.save("input.png").unwrap();
     let screen_scaling = if image.width() * 9 > image.height() * 16 {
@@ -248,6 +419,13 @@ pub fn extract_parts(image: &DynamicImage, theme: Theme) -> Vec<DynamicImage> {
     filter_and_separate_parts_from_part_box(partial_screenshot, theme)
 }
 
+/// Filters and separates individual parts from a reward box
+///
+/// This function:
+/// 1. Converts the image to black and white based on theme colors
+/// 2. Uses cosine analysis to detect reward spacing
+/// 3. Determines if there are 3 or 4 rewards
+/// 4. Splits the image into individual reward sections
 pub fn filter_and_separate_parts_from_part_box(
     image: DynamicImage,
     theme: Theme,
@@ -328,35 +506,19 @@ pub fn filter_and_separate_parts_from_part_box(
     images
 }
 
-pub fn normalize_string(string: &str) -> String {
-    string.replace(|c: char| !c.is_ascii_alphabetic(), "")
-}
-
-pub fn image_to_string(tesseract: &mut Option<Tesseract>, image: &DynamicImage) -> String {
-    let mut ocr = tesseract.take().unwrap();
-    let buffer = image.as_flat_samples_u8().unwrap();
-    ocr = ocr
-        .set_frame(
-            buffer.samples,
-            image.width() as i32,
-            image.height() as i32,
-            3,
-            3 * image.width() as i32,
-        )
-        .expect("Failed to set image");
-
-    let result = ocr.get_text().expect("Failed to get text");
-    tesseract.replace(ocr);
-
-    result
-}
-
 lazy_static! {
     pub static ref OCR: Mutex<Option<Tesseract>> = Mutex::new(Some(
         Tesseract::new(None, Some("eng")).expect("Could not initialize Tesseract")
     ));
 }
 
+/// Processes a reward screen image and returns the names of all rewards
+///
+/// This function:
+/// 1. Detects the theme if not provided
+/// 2. Extracts individual reward parts
+/// 3. Performs OCR on each part
+/// 4. Returns a vector of reward names
 pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -> Vec<String> {
     let theme = theme.unwrap_or_else(|| detect_theme(&image));
     let parts = extract_parts(&image, theme);
@@ -366,4 +528,28 @@ pub fn reward_image_to_reward_names(image: DynamicImage, theme: Option<Theme>) -
         .iter()
         .map(|image| image_to_string(&mut OCR.lock().unwrap(), image))
         .collect()
+}
+
+/// Processes a single part image and returns its name
+///
+/// # Arguments
+/// * `image` - Source image
+/// * `theme` - Optional theme for color processing
+/// * `sel_size` - Selection dimensions (width, height)
+/// * `sel_pos` - Selection position (x, y)
+/// * `brightness` - OCR brightness adjustment (-255 to 255)
+/// * `contrast` - OCR contrast adjustment (0.0 to 10.0)
+pub fn part_image_to_part_name(
+    image: DynamicImage,
+    _theme: Option<Theme>,
+    sel_size: (i32, i32),
+    sel_pos: (i32, i32),
+    brightness: i32,
+    contrast: f32,
+) -> String {
+    let part = extract_part(&image, sel_size, sel_pos, brightness, contrast);
+    debug!("Extracted part image");
+
+    let text = image_to_string(&mut OCR.lock().unwrap(), &part);
+    text
 }

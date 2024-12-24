@@ -11,7 +11,7 @@ use eframe::{
     epaint::ColorImage,
 };
 use egui_extras::RetainedImage;
-use image::{io::Reader, DynamicImage, Rgb};
+use image::{DynamicImage, ImageReader, Rgb};
 use palette::{FromColor, Hsl, Srgb};
 use wfinfo::{
     database::Database,
@@ -44,7 +44,7 @@ impl Default for MyApp {
     fn default() -> Self {
         let original_images = std::env::args()
             .skip(1)
-            .map(|name| Reader::open(name).unwrap().decode().unwrap())
+            .map(|name| ImageReader::open(name).unwrap().decode().unwrap())
             .collect();
         let settings = HslRange {
             saturation: 0.50..1.0,
@@ -78,7 +78,7 @@ fn spawn_ocr_thread(
     let images = images.to_owned();
 
     thread::spawn(move || {
-        let database = Database::load_from_file(None, None, Some(1.0));
+        let database = Database::load_from_file(None, None, Some(1.0), Some(35.0 / 3.0));
         loop {
             let (mut index, mut last_request): (usize, HslRange<f32>) =
                 request_receiver.recv().unwrap();
