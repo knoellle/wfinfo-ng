@@ -86,11 +86,6 @@ pub fn extract_part(
     let enhanced = colorops::contrast(&brightened, contrast);
     let enhanced = DynamicImage::ImageRgb8(enhanced);
 
-    // Save debug image for troubleshooting
-    if let Err(e) = enhanced.save("debug_cropped.png") {
-        debug!("Failed to save debug image: {}", e);
-    }
-
     enhanced
 }
 

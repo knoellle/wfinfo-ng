@@ -118,12 +118,6 @@ fn run_snapit(window: &Window, db: &Database, arguments: &Arguments) -> Option<S
     let window_x = window.x();
     let window_y = window.y();
 
-    // Save selection to Desktop for debugging
-    let desktop_path = PathBuf::from(std::env::var("HOME").unwrap())
-        .join("Desktop")
-        .join("wfinfo_selection.png");
-    debug!("Saving selection to: {}", desktop_path.display());
-
     let cropped = extract_part(
         &image,
         (selection.width, selection.height),
@@ -131,12 +125,6 @@ fn run_snapit(window: &Window, db: &Database, arguments: &Arguments) -> Option<S
         arguments.ocr_brightness,
         arguments.ocr_contrast,
     );
-
-    if let Err(e) = cropped.save(&desktop_path) {
-        error!("Failed to save selection: {}", e);
-    } else {
-        debug!("Successfully saved selection image");
-    }
 
     // Convert the selection to a part name
     let params = SelectionParams {
