@@ -1,3 +1,4 @@
+pub mod config;
 pub mod database;
 pub mod ocr;
 pub mod statistics;

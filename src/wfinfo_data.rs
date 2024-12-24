@@ -9,6 +9,10 @@ pub mod price_data {
         pub name: String,
         #[serde(deserialize_with = "deserialize_number_from_string")]
         pub custom_avg: f32,
+        #[serde(deserialize_with = "deserialize_number_from_string")]
+        pub yesterday_vol: usize,
+        #[serde(deserialize_with = "deserialize_number_from_string")]
+        pub today_vol: usize,
     }
 }
 
