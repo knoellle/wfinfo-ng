@@ -11,7 +11,7 @@ use std::{path::PathBuf, sync::mpsc};
 use clap::Parser;
 use env_logger::{Builder, Env};
 use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState};
-use image::DynamicImage;
+use xcap::image::DynamicImage;
 use log::{debug, error, info, warn};
 use notify::{watcher, RecursiveMode, Watcher};
 use xcap::Window;
@@ -139,7 +139,7 @@ fn hotkey_watcher(hotkey: HotKey, event_sender: mpsc::Sender<()>) {
 #[allow(dead_code)]
 fn benchmark() -> Result<(), Box<dyn Error>> {
     for _ in 0..10 {
-        let image = image::open("input3.png").unwrap();
+        let image = xcap::image::open("input3.png").unwrap();
         println!("Converted");
         let text = reward_image_to_reward_names(image, None);
         println!("got names");
@@ -181,7 +181,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     let windows = Window::all()?;
-    let Some(warframe_window) = windows.iter().find(|x| x.title() == window_name) else {
+    let Some(warframe_window) = windows.iter().find(|x| x.title().unwrap_or("".to_owned()) == window_name) else {
         return Err("Warframe window not found".into());
     };
 
@@ -215,7 +215,7 @@ mod test {
     use std::collections::BTreeMap;
     use std::fs::read_to_string;
 
-    use image::io::Reader;
+    use xcap::image::io::Reader;
     use indexmap::IndexMap;
     use rayon::prelude::*;
     use tesseract::Tesseract;

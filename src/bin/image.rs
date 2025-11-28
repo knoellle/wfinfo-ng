@@ -1,6 +1,6 @@
 use std::{fs::write, path::PathBuf};
 
-use image::io::Reader;
+use xcap::image::ImageReader;
 use indexmap::IndexMap;
 use wfinfo::{
     database::Database,
@@ -13,7 +13,7 @@ fn main() {
 
     for argument in std::env::args().skip(1) {
         let filepath = PathBuf::from(argument);
-        let image = Reader::open(&filepath).unwrap().decode().unwrap();
+        let image = ImageReader::open(&filepath).unwrap().decode().unwrap();
 
         let detections = reward_image_to_reward_names(image.clone(), None);
         println!("{:#?}", detections);
