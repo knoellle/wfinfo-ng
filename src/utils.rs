@@ -1,7 +1,7 @@
+use reqwest::StatusCode;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
-use reqwest::StatusCode;
 
 pub fn fetch_prices_and_items() -> Result<(PathBuf, PathBuf), anyhow::Error> {
     let prices = download_and_save("https://api.warframestat.us/wfinfo/prices/", "prices.json")?;
