@@ -19,7 +19,6 @@ fn download_and_save(url: &str, filename: &str) -> Result<PathBuf, anyhow::Error
 
     let res = reqwest::blocking::get(url)?;
     if res.status() == 200 {
-
         let mut file = OpenOptions::new()
             .write(true)
             .truncate(true)
