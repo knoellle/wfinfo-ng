@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use image::Rgb;
+use xcap::image::Rgb;
 use ordered_float::OrderedFloat;
 use palette::{FromColor, Hsl, RgbHue, Srgb};
 use serde::{Deserialize, Serialize};

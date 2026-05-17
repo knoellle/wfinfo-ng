@@ -4,7 +4,7 @@ use std::f32::consts::PI;
 use std::{collections::HashMap, sync::Mutex};
 use tesseract::Tesseract;
 
-use image::{DynamicImage, GenericImageView, Pixel, Rgb};
+use xcap::image::{DynamicImage, GenericImageView, Pixel, Rgb};
 use log::debug;
 
 use crate::theme::Theme;
