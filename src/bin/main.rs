@@ -49,10 +49,11 @@ fn run_detection(capturer: &Window, db: &Database) {
     for (index, item) in items.iter().enumerate() {
         if let Some(item) = item {
             info!(
-                "{}\n\t{}\t{}\t{}",
+                "{}\n\t{}\t{}\t{}\t{}",
                 item.drop_name,
                 item.platinum,
                 item.ducats as f32 / 10.0,
+                if item.vaulted { "vaulted" } else { "" },
                 if Some(index) == best { "<----" } else { "" }
             );
         } else {
