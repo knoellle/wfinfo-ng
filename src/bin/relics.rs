@@ -72,7 +72,7 @@ fn best_trace_dump(database: &Database) {
 }
 
 fn main() {
-    let database = Database::load_from_file(None, None);
+    let database = Database::load_from_file(None, None, Some(1.0), Some(35.0 / 3.0));
     let mut args = std::env::args().skip(1);
     let relics = match args
         .next()
